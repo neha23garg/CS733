@@ -1,2 +1,0 @@
-StateMachine id is 5. Peer state machine ids are 1,2,3,4 respectively.
-While storing information for peers (like voteGrantedArray,nextIndex), peer i information is stored at index i-1 in the needed array.
