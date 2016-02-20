@@ -13,6 +13,7 @@ func TestPositiveVoteRequestFollower(t *testing.T) {
 	//Test for positive response of vote request
 	s := &Server{currentTerm: 0, votedFor: 0, leader: 0, state: "FOLLOWER"}
 	action := make([]Action, 0)
+	// term:1,candidate id:1
 	action = s.ProcessEvent(VoteReq{1, 1, 0, 0})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 1)
@@ -22,7 +23,7 @@ func TestPositiveVoteRequestFollower(t *testing.T) {
 	expectString(t, ev, "VoteResp")
 	expectInt(t, trm, 1)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -30,11 +31,10 @@ func TestPositiveVoteRequestFollower(t *testing.T) {
 	expectInt(t, vote, 1)
 }
 
-//Test for negative response of vote request
+//Test for negative response of vote request if vote request is received from lower term candidate
 func TestNegativeVoteRequestWithLowTermFollower(t *testing.T) {
-	logArray := make([]LogInfo, 0)
-	peerArray := make([]int, 0)
-	s := &Server{currentTerm: 2, votedFor: 0, log: logArray, commitIndex: -1, leader: 0, state: "FOLLOWER", peers: peerArray}
+	s := &Server{currentTerm: 2, votedFor: 0, state: "FOLLOWER"}
+	// term:1,candidate id:1
 	action := s.ProcessEvent(VoteReq{1, 1, 0, 0})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 2)
@@ -44,15 +44,14 @@ func TestNegativeVoteRequestWithLowTermFollower(t *testing.T) {
 	expectString(t, ev, "VoteResp")
 	expectInt(t, trm, 2)
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
 //Test duplicate vote Request from same server id and term for which follower has already voted
 func TestDuplicateVoteRequestFollower(t *testing.T) {
-	logArray := make([]LogInfo, 0)
-	peerArray := make([]int, 0)
-	s := &Server{currentTerm: 2, votedFor: 1, log: logArray, commitIndex: 0, leader: 0, state: "FOLLOWER", peers: peerArray}
+	s := &Server{currentTerm: 2, votedFor: 1, leader: 0, state: "FOLLOWER"}
+	// term:1,candidate id:1
 	action := s.ProcessEvent(VoteReq{2, 1, 1, 1})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 2)
@@ -62,15 +61,14 @@ func TestDuplicateVoteRequestFollower(t *testing.T) {
 	expectString(t, ev, "VoteResp")
 	expectInt(t, trm, 2)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
 //Test vote Request if follower has already granted his vote for the term and receive vote request for the same term from another server
 func TestVoteRequestForSameTermTwiceFollower(t *testing.T) {
-	logArray := make([]LogInfo, 0)
-	peerArray := make([]int, 0)
-	s := &Server{currentTerm: 2, votedFor: 1, log: logArray, commitIndex: 0, leader: 0, state: "FOLLOWER", peers: peerArray}
+	s := &Server{currentTerm: 2, votedFor: 1, leader: 0, state: "FOLLOWER"}
+	// term:2,candidate id:3
 	action := s.ProcessEvent(VoteReq{2, 3, 1, 1})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 2)
@@ -80,16 +78,16 @@ func TestVoteRequestForSameTermTwiceFollower(t *testing.T) {
 	expectString(t, ev, "VoteResp")
 	expectInt(t, trm, 2)
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 3)
 }
 
 //Test for negative response of vote request from a server with higher term with not upto date logs
 func TestNegativeVoteRequestWithHigherTermFollower(t *testing.T) {
 	logArray := make([]LogInfo, 0)
-	peerArray := make([]int, 0)
 	logArray = append(logArray, LogInfo{term: 1, data: []byte("one")}, LogInfo{term: 2, data: []byte("two")})
-	s := &Server{currentTerm: 2, votedFor: 1, log: logArray, commitIndex: 0, leader: 0, state: "FOLLOWER", peers: peerArray}
+	s := &Server{currentTerm: 2, votedFor: 1, log: logArray, commitIndex: 0, leader: 0, state: "FOLLOWER"}
+	// term:5,candidate id:1,lastlogIndex:0,lastLogTerm:1
 	action := s.ProcessEvent(VoteReq{5, 1, 0, 1})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 5)
@@ -98,7 +96,7 @@ func TestNegativeVoteRequestWithHigherTermFollower(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "VoteResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -110,9 +108,9 @@ func TestNegativeVoteRequestWithHigherTermFollower(t *testing.T) {
 //Test for negative response of vote request from a server with higher term and it's previous log index not matching with follower previous log index
 func TestNegativeVoteRequestWithLowerIndexFollower(t *testing.T) {
 	logArray := make([]LogInfo, 0)
-	peerArray := make([]int, 0)
 	logArray = append(logArray, LogInfo{term: 1, data: []byte("one")}, LogInfo{term: 2, data: []byte("two")})
-	s := &Server{currentTerm: 2, votedFor: 1, log: logArray, commitIndex: 0, leader: 0, state: "FOLLOWER", peers: peerArray}
+	s := &Server{currentTerm: 2, votedFor: 1, log: logArray, leader: 0, state: "FOLLOWER"}
+	// term:3,candidate id:1,lastlogIndex:0,lastLogTerm:1
 	action := s.ProcessEvent(VoteReq{3, 1, 0, 1})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 3)
@@ -121,7 +119,7 @@ func TestNegativeVoteRequestWithLowerIndexFollower(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "VoteResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -132,9 +130,9 @@ func TestNegativeVoteRequestWithLowerIndexFollower(t *testing.T) {
 //Test for negative response of vote request from a server with higher term and it's previous log index matches with follower previous log index but previous log term differs
 func TestNegativeVoteRequestWithNonMatchingPrevLogTermFollower(t *testing.T) {
 	logArray := make([]LogInfo, 0)
-	peerArray := make([]int, 0)
 	logArray = append(logArray, LogInfo{term: 1, data: []byte("one")}, LogInfo{term: 2, data: []byte("two")})
-	s := &Server{currentTerm: 2, votedFor: 1, log: logArray, commitIndex: 0, leader: 0, state: "FOLLOWER", peers: peerArray}
+	s := &Server{currentTerm: 2, votedFor: 1, log: logArray, commitIndex: 0, leader: 0, state: "FOLLOWER"}
+	// term:3,candidate id:1,lastlogIndex:1,lastLogTerm:1
 	action := s.ProcessEvent(VoteReq{3, 1, 1, 1})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 3)
@@ -143,7 +141,7 @@ func TestNegativeVoteRequestWithNonMatchingPrevLogTermFollower(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "VoteResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -152,8 +150,9 @@ func TestNegativeVoteRequestWithNonMatchingPrevLogTermFollower(t *testing.T) {
 }
 
 //Test vote response request with same term
-func TestVoteRespFromSameTermFollower(t *testing.T){
+func TestVoteRespFromSameTermFollower(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 1, state: "FOLLOWER"}
+	//term:2,voteGranted=false,server id:3
 	action := s.ProcessEvent(VoteResp{2, false, 3})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 2)
@@ -162,9 +161,11 @@ func TestVoteRespFromSameTermFollower(t *testing.T){
 	//action array length should be zero
 	expectInt(t, length, 0)
 }
+
 //Test vote response request with lower term
-func TestVoteRespFromLowerTermFollower(t *testing.T){
+func TestVoteRespFromLowerTermFollower(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 1, state: "FOLLOWER"}
+	//term:1,voteGranted=false,server id:3
 	action := s.ProcessEvent(VoteResp{1, false, 3})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 2)
@@ -175,8 +176,9 @@ func TestVoteRespFromLowerTermFollower(t *testing.T){
 }
 
 //Test vote response request with higher term
-func TestVoteRespFromHigherTermFollower(t *testing.T){
+func TestVoteRespFromHigherTermFollower(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 1, state: "FOLLOWER"}
+	//term:3,voteGranted=false,server id:3
 	action := s.ProcessEvent(VoteResp{3, false, 3})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 3)
@@ -211,7 +213,7 @@ func TestSuccessAppendEntryRequestFollower(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 1)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -245,7 +247,7 @@ func TestSuccessAppendEntryRequestFromHigherTermFollower(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 3)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -277,7 +279,7 @@ func TestAppendEntryRequestWithHigherTermHeartbeatFollower(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 5)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -308,7 +310,7 @@ func TestSuccessAppendEntryRequestFromSameTermFollower(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 2)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -338,7 +340,7 @@ func TestSuccessAppendEntryRequestHavingExtraLogEntriesFollower(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 2)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -359,7 +361,7 @@ func TestFailAppendEntryRequestWithSameTermNonMatchingPrevIndexFollower(t *testi
 	expectString(t, act, "Send")
 	expectString(t, ev, "AppendEntriesResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -381,7 +383,7 @@ func TestFailAppendEntryRequestWithSameTermNonMatchingPrevTermFollower(t *testin
 	expectString(t, act, "Send")
 	expectString(t, ev, "AppendEntriesResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -390,9 +392,9 @@ func TestFailAppendEntryRequestWithSameTermNonMatchingPrevTermFollower(t *testin
 }
 
 //Test append entry response request with same term from serverid 3
-func TestAppendEntryRespFromSameTermFollower(t *testing.T){
+func TestAppendEntryRespFromSameTermFollower(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 1, state: "FOLLOWER"}
-	action := s.ProcessEvent(AppendEntriesResp{3,2, false,0,0})
+	action := s.ProcessEvent(AppendEntriesResp{3, 2, false, 0, 0})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 2)
 	expectInt(t, s.votedFor, 1)
@@ -400,10 +402,11 @@ func TestAppendEntryRespFromSameTermFollower(t *testing.T){
 	//action array length should be zero
 	expectInt(t, length, 0)
 }
+
 //Test append entry response request with lower term from serverid 3
-func TestAppendEntryRespFromLowerTermFollower(t *testing.T){
+func TestAppendEntryRespFromLowerTermFollower(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 1, state: "FOLLOWER"}
-	action := s.ProcessEvent(AppendEntriesResp{3,1, false,0,0})
+	action := s.ProcessEvent(AppendEntriesResp{3, 1, false, 0, 0})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 2)
 	expectInt(t, s.votedFor, 1)
@@ -413,9 +416,9 @@ func TestAppendEntryRespFromLowerTermFollower(t *testing.T){
 }
 
 //Test append entry response request with higher term from serverid 3
-func TestAppendEntryRespFromHigherTermFollower(t *testing.T){
+func TestAppendEntryRespFromHigherTermFollower(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 1, state: "FOLLOWER"}
-	action := s.ProcessEvent(AppendEntriesResp{3,3, false,0,0})
+	action := s.ProcessEvent(AppendEntriesResp{3, 3, false, 0, 0})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 3)
 	expectInt(t, s.votedFor, 0)
@@ -449,7 +452,7 @@ func TestTimeOutFollower(t *testing.T) {
 		expectString(t, ev, "VoteReq")
 		expectInt(t, ind, 2)
 		expectInt(t, vote, 5)
-		//check voter id as well
+		//check candidate id as well
 		expectInt(t, to, i)
 	}
 	//check the presence of alarm action
@@ -460,14 +463,14 @@ func TestTimeOutFollower(t *testing.T) {
 }
 
 func TestAppendRequestFromClientToFollower(t *testing.T) {
-	s := &Server{currentTerm: 1, votedFor: 1,  leader: 1, state: "FOLLOWER"}
+	s := &Server{currentTerm: 1, votedFor: 1, leader: 1, state: "FOLLOWER"}
 	action := s.ProcessEvent(Append{[]byte("hello")})
 	act, _, _, _, _, _ := getDetails(action, 0)
 	expectString(t, act, "Commit")
 	typeaction := action[0]
 	obj := typeaction.(Commit)
-	expectString(t, obj.error, "Leader is at Id 1")	
-	
+	expectString(t, obj.error, "Leader is at Id 1")
+
 }
 
 //***********************Candidate Testing****************************************************************
@@ -486,7 +489,7 @@ func TestPositiveVoteRequestCandidate(t *testing.T) {
 	expectString(t, ev, "VoteResp")
 	expectInt(t, trm, 2)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -508,7 +511,7 @@ func TestNegativeVoteRequestWithLowerTermCandidate(t *testing.T) {
 	expectString(t, ev, "VoteResp")
 	expectInt(t, trm, 2)
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -526,7 +529,7 @@ func TestNegativeVoteRequestWithLowerIndexCandidate(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "VoteResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 
 }
@@ -545,7 +548,7 @@ func TestNegativeVoteRequestWithNonMatchingPrevLogTermCandidate(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "VoteResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -563,7 +566,7 @@ func TestNegativeVoteRequestFromHigherTermCandidate(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "VoteResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -589,7 +592,7 @@ func TestVoteResponseCandidateToLeader(t *testing.T) {
 		expectString(t, ev, "AppendEntriesReq")
 		expectInt(t, ind, 2)
 		expectInt(t, vote, 5)
-		//check voter id as well
+		//check candidate id as well
 		expectInt(t, to, i+1)
 	}
 	//check the presence of alarm action
@@ -687,7 +690,7 @@ func TestTimeOutCandidate(t *testing.T) {
 		expectString(t, ev, "VoteReq")
 		expectInt(t, ind, 2)
 		expectInt(t, vote, 5)
-		//check voter id as well
+		//check candidate id as well
 		expectInt(t, to, i)
 	}
 	//check the presence of alarm action
@@ -726,7 +729,7 @@ func TestSuccessAppendEntryRequestCandidate(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 3)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 
 }
@@ -748,7 +751,7 @@ func TestSuccessAppendEntryRequestFromUptoDateLogsCandidate(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 2)
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 
 }
@@ -781,7 +784,7 @@ func TestAppendEntryRequestWithHigherTermHeartbeatCandidate(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 5)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -811,7 +814,7 @@ func TestSuccessAppendEntryRequestHavingExtraLogEntriesCandidate(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 2)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -833,7 +836,7 @@ func TestFailAppendEntryRequestWithSameTermNonMatchingPrevTermCandidate(t *testi
 	expectString(t, act, "Send")
 	expectString(t, ev, "AppendEntriesResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -858,14 +861,14 @@ func TestFailAppendEntryRequestFromLowerTermCandidate(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "AppendEntriesResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
 //Test append entry response request with same term from serverid 3
-func TestAppendEntryRespFromSameTermCandidate(t *testing.T){
+func TestAppendEntryRespFromSameTermCandidate(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 1, state: "CANDIDATE"}
-	action := s.ProcessEvent(AppendEntriesResp{3,2, false,0,0})
+	action := s.ProcessEvent(AppendEntriesResp{3, 2, false, 0, 0})
 	expectString(t, s.state, "CANDIDATE")
 	expectInt(t, s.currentTerm, 2)
 	expectInt(t, s.votedFor, 1)
@@ -873,10 +876,11 @@ func TestAppendEntryRespFromSameTermCandidate(t *testing.T){
 	//action array length should be zero
 	expectInt(t, length, 0)
 }
+
 //Test append entry response request with lower term from serverid 3
-func TestAppendEntryRespFromLowerTermCandidate(t *testing.T){
+func TestAppendEntryRespFromLowerTermCandidate(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 1, state: "CANDIDATE"}
-	action := s.ProcessEvent(AppendEntriesResp{3,1, false,0,0})
+	action := s.ProcessEvent(AppendEntriesResp{3, 1, false, 0, 0})
 	expectString(t, s.state, "CANDIDATE")
 	expectInt(t, s.currentTerm, 2)
 	expectInt(t, s.votedFor, 1)
@@ -886,9 +890,9 @@ func TestAppendEntryRespFromLowerTermCandidate(t *testing.T){
 }
 
 //Test append entry response request with higher term from serverid 3
-func TestAppendEntryRespFromHigherTermCandidate(t *testing.T){
+func TestAppendEntryRespFromHigherTermCandidate(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 1, state: "CANDIDATE"}
-	action := s.ProcessEvent(AppendEntriesResp{3,3, false,0,0})
+	action := s.ProcessEvent(AppendEntriesResp{3, 3, false, 0, 0})
 	expectString(t, s.state, "FOLLOWER")
 	expectInt(t, s.currentTerm, 3)
 	expectInt(t, s.votedFor, 0)
@@ -899,16 +903,15 @@ func TestAppendEntryRespFromHigherTermCandidate(t *testing.T){
 }
 
 func TestAppendRequestFromClientToCandidate(t *testing.T) {
-	s := &Server{currentTerm: 1, votedFor: 1,  leader: 1, state: "CANDIDATE"}
+	s := &Server{currentTerm: 1, votedFor: 1, leader: 1, state: "CANDIDATE"}
 	action := s.ProcessEvent(Append{[]byte("hello")})
 	act, _, _, _, _, _ := getDetails(action, 0)
 	expectString(t, act, "Commit")
 	typeaction := action[0]
 	obj := typeaction.(Commit)
-	expectString(t, obj.error, "Leader is at Id 1")	
-	
-}
+	expectString(t, obj.error, "Leader is at Id 1")
 
+}
 
 //**************Leader Testing*************************************************************
 func TestPositiveVoteRequestLeader(t *testing.T) {
@@ -926,7 +929,7 @@ func TestPositiveVoteRequestLeader(t *testing.T) {
 	expectString(t, ev, "VoteResp")
 	expectInt(t, trm, 2)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -948,7 +951,7 @@ func TestNegativeVoteRequestWithLowerTermLeader(t *testing.T) {
 	expectString(t, ev, "VoteResp")
 	expectInt(t, trm, 2)
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -966,7 +969,7 @@ func TestNegativeVoteRequestWithLowerIndexLeader(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "VoteResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 
 }
@@ -985,7 +988,7 @@ func TestNegativeVoteRequestWithNonMatchingPrevLogTermLeader(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "VoteResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -1003,7 +1006,7 @@ func TestNegativeVoteRequestFromHigherTermLeader(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "VoteResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -1044,7 +1047,7 @@ func TestTimeOutLeader(t *testing.T) {
 		expectInt(t, ind, 2)
 		//check voted for
 		expectInt(t, vote, 5)
-		//check voter id as well
+		//check candidate id as well
 		expectInt(t, to, i+1)
 	}
 	//check the presence of alarm action
@@ -1081,11 +1084,10 @@ func TestSuccessAppendEntryRequestLeader(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 3)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 
 }
-
 
 //Test for append entry request from a sever with higher term but with not matching previous log index and term
 func TestAppendEntryRequestWithHigherTermHeartbeatLeader(t *testing.T) {
@@ -1112,7 +1114,7 @@ func TestAppendEntryRequestWithHigherTermHeartbeatLeader(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 5)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -1135,7 +1137,7 @@ func TestSuccessAppendEntryRequestHavingExtraLogEntriesLeader(t *testing.T) {
 	expectInt(t, ind, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
-	expectInt(t, trm,3)
+	expectInt(t, trm, 3)
 	expectInt(t, vote, 0)
 	act, ev, ind, flag, _, _ := getDetails(action, 2)
 	expectString(t, act, "Commit")
@@ -1145,7 +1147,7 @@ func TestSuccessAppendEntryRequestHavingExtraLogEntriesLeader(t *testing.T) {
 	expectString(t, ev, "AppendEntriesResp")
 	expectInt(t, ind, 3)
 	expectBool(t, flag, true)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
@@ -1166,7 +1168,7 @@ func TestFailAppendEntryRequestWithSameTermNonMatchingPrevTermLeader(t *testing.
 	expectString(t, act, "Send")
 	expectString(t, ev, "AppendEntriesResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 	act, _, trm, _, vote, _ := getDetails(action, 1)
 	expectString(t, act, "StateStore")
@@ -1190,12 +1192,12 @@ func TestFailAppendEntryRequestFromLowerTermLeader(t *testing.T) {
 	expectString(t, act, "Send")
 	expectString(t, ev, "AppendEntriesResp")
 	expectBool(t, flag, false)
-	//check voter id as well
+	//check candidate id as well
 	expectInt(t, to, 1)
 }
 
 //Test for append request made by client to Leader
-func TestAppendRequestFromClientToLeader(t *testing.T){
+func TestAppendRequestFromClientToLeader(t *testing.T) {
 	logArray := make([]LogInfo, 0)
 	peerArray := make([]int, 0)
 	//peer id array
@@ -1222,16 +1224,16 @@ func TestAppendRequestFromClientToLeader(t *testing.T){
 }
 
 //Test append entry response sent by follower to leader indicating replication of logs from leader current term
-func TestAppendEntryRespOfCurrentTermLeader(t *testing.T){
+func TestAppendEntryRespOfCurrentTermLeader(t *testing.T) {
 	logArray := make([]LogInfo, 0)
-	logArray = append(logArray, LogInfo{term: 1, data: []byte("one")},LogInfo{term: 2, data: []byte("two")},LogInfo{term: 3, data: []byte("three")},LogInfo{term: 4, data: []byte("four")})
-	nextInd:=make([]int,0)
-	nextInd = append(nextInd,4,4,4,4)
-	matchInd:=make([]int,0)
-	matchInd = append(matchInd,0,3,1,1)
-	s := &Server{currentTerm: 4, votedFor: 5, log: logArray, commitIndex: 0, leader: 5, state: "LEADER",nextIndex:nextInd,matchIndex:matchInd}
+	logArray = append(logArray, LogInfo{term: 1, data: []byte("one")}, LogInfo{term: 2, data: []byte("two")}, LogInfo{term: 3, data: []byte("three")}, LogInfo{term: 4, data: []byte("four")})
+	nextInd := make([]int, 0)
+	nextInd = append(nextInd, 4, 4, 4, 4)
+	matchInd := make([]int, 0)
+	matchInd = append(matchInd, 0, 3, 1, 1)
+	s := &Server{currentTerm: 4, votedFor: 5, log: logArray, commitIndex: 0, leader: 5, state: "LEADER", nextIndex: nextInd, matchIndex: matchInd}
 	//follower with id 1 has sent a success reponse indicating it has appended all the entries starting from index 1 till index 3 (count=3, lastlogindex=0)
-	action := s.ProcessEvent(AppendEntriesResp{1,4,true,3,0})
+	action := s.ProcessEvent(AppendEntriesResp{1, 4, true, 3, 0})
 	expectString(t, s.state, "LEADER")
 	expectInt(t, s.currentTerm, 4)
 	//commit index will change from 0 to 3
@@ -1242,29 +1244,29 @@ func TestAppendEntryRespOfCurrentTermLeader(t *testing.T){
 }
 
 //Test append entry response sent by follower to leader indicating replication of logs but not from leader current term
-func TestAppendEntryRespNotOfCurrentTermLeader(t *testing.T){
+func TestAppendEntryRespNotOfCurrentTermLeader(t *testing.T) {
 	logArray := make([]LogInfo, 0)
-	logArray = append(logArray, LogInfo{term: 1, data: []byte("one")},LogInfo{term: 2, data: []byte("two")},LogInfo{term: 3, data: []byte("three")},LogInfo{term: 4, data: []byte("four")})
-	nextInd:=make([]int,0)
-	nextInd = append(nextInd,4,4,4,4)
-	matchInd:=make([]int,0)
-	matchInd = append(matchInd,0,3,1,1)
-	s := &Server{currentTerm: 5, votedFor: 5, log: logArray, commitIndex: 2, leader: 5, state: "LEADER",nextIndex:nextInd,matchIndex:matchInd}
+	logArray = append(logArray, LogInfo{term: 1, data: []byte("one")}, LogInfo{term: 2, data: []byte("two")}, LogInfo{term: 3, data: []byte("three")}, LogInfo{term: 4, data: []byte("four")})
+	nextInd := make([]int, 0)
+	nextInd = append(nextInd, 4, 4, 4, 4)
+	matchInd := make([]int, 0)
+	matchInd = append(matchInd, 0, 3, 1, 1)
+	s := &Server{currentTerm: 5, votedFor: 5, log: logArray, commitIndex: 2, leader: 5, state: "LEADER", nextIndex: nextInd, matchIndex: matchInd}
 	//follower with id 1 has sent a success reponse indicating it has appended all the entries starting from index 1 till index 3 (count=3, lastlogindex=0)  but not from leader current term
-	_ = s.ProcessEvent(AppendEntriesResp{1,4,true,3,0})
+	_ = s.ProcessEvent(AppendEntriesResp{1, 4, true, 3, 0})
 	expectString(t, s.state, "LEADER")
-	expectInt(t, s.currentTerm, 5)	
+	expectInt(t, s.currentTerm, 5)
 	//commit index should not change
 	expectInt(t, s.commitIndex, 2)
 }
 
-//Test append entry response sent by follower with higher term to leader 
-func TestAppendEntryRespFromHigherTermServerToLeader(t *testing.T){
+//Test append entry response sent by follower with higher term to leader
+func TestAppendEntryRespFromHigherTermServerToLeader(t *testing.T) {
 	s := &Server{currentTerm: 2, votedFor: 5, commitIndex: 2, leader: 5, state: "LEADER"}
-	//follower with id 1 having term 5 has sent reponse 
-	action:= s.ProcessEvent(AppendEntriesResp{1,5,false,3,0})
+	//follower with id 1 having term 5 has sent reponse
+	action := s.ProcessEvent(AppendEntriesResp{1, 5, false, 3, 0})
 	expectString(t, s.state, "FOLLOWER")
-	expectInt(t, s.currentTerm, 5)	
+	expectInt(t, s.currentTerm, 5)
 	//commit index should not change
 	expectInt(t, s.commitIndex, 2)
 	act, _, trm, _, vote, _ := getDetails(action, 0)
@@ -1274,37 +1276,36 @@ func TestAppendEntryRespFromHigherTermServerToLeader(t *testing.T){
 }
 
 //Test append entry false response sent by follower to leader indicating non replication of logs
-func TestAppendEntryFalseRespLeader(t *testing.T){
+func TestAppendEntryFalseRespLeader(t *testing.T) {
 	logArray := make([]LogInfo, 0)
-	logArray = append(logArray, LogInfo{term: 1, data: []byte("one")},LogInfo{term: 2, data: []byte("two")},LogInfo{term: 3, data: []byte("three")},LogInfo{term: 4, data: []byte("four")})
-	nextInd:=make([]int,0)
-	nextInd = append(nextInd,4,4,4,4)
-	matchInd:=make([]int,0)
-	matchInd = append(matchInd,0,3,1,1)
-	s := &Server{currentTerm: 5, votedFor: 5, log: logArray, commitIndex: 2, leader: 5, state: "LEADER",nextIndex:nextInd,matchIndex:matchInd}
+	logArray = append(logArray, LogInfo{term: 1, data: []byte("one")}, LogInfo{term: 2, data: []byte("two")}, LogInfo{term: 3, data: []byte("three")}, LogInfo{term: 4, data: []byte("four")})
+	nextInd := make([]int, 0)
+	nextInd = append(nextInd, 4, 4, 4, 4)
+	matchInd := make([]int, 0)
+	matchInd = append(matchInd, 0, 3, 1, 1)
+	s := &Server{currentTerm: 5, votedFor: 5, log: logArray, commitIndex: 2, leader: 5, state: "LEADER", nextIndex: nextInd, matchIndex: matchInd}
 	//follower with id 1 has sent a false reponse indicating it's log not match with leader's log when leader sent him append entry request with lastlogindex=2
-	action:= s.ProcessEvent(AppendEntriesResp{1,4,false,3,2})
+	action := s.ProcessEvent(AppendEntriesResp{1, 4, false, 3, 2})
 	expectString(t, s.state, "LEADER")
-	expectInt(t, s.currentTerm, 5)	
+	expectInt(t, s.currentTerm, 5)
 	//commit index should not change
 	expectInt(t, s.commitIndex, 2)
 	act, ev, ind, _, vote, to := getDetails(action, 0)
-		expectString(t, act, "Send")
-		expectString(t, ev, "AppendEntriesReq")
-		//check term
-		expectInt(t, ind, 5)
-		//check leaderId
-		expectInt(t, vote, 5)
-		//check voter id as well
-		expectInt(t, to, 1)
-		typeaction := action[0]
-		obj := typeaction.(Send)
-		respObj := obj.event.(AppendEntriesReq)
-		//leader needs to decrease last last index with 1
-		expectInt(t, respObj.lastLogIndex, 1)
-		expectInt(t, respObj.lastLogTerm, 2)
+	expectString(t, act, "Send")
+	expectString(t, ev, "AppendEntriesReq")
+	//check term
+	expectInt(t, ind, 5)
+	//check leaderId
+	expectInt(t, vote, 5)
+	//check candidate id as well
+	expectInt(t, to, 1)
+	typeaction := action[0]
+	obj := typeaction.(Send)
+	respObj := obj.event.(AppendEntriesReq)
+	//leader needs to decrease last last index with 1
+	expectInt(t, respObj.lastLogIndex, 1)
+	expectInt(t, respObj.lastLogTerm, 2)
 }
-
 
 func getDetails(action []Action, index int) (string, string, int, bool, int, int) {
 	var act, event string

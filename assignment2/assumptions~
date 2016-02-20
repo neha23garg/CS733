@@ -6,11 +6,9 @@ All variables and data stored is in volatile memory
 **************************************Read Me************************************
 RAFT STATE MACHINE IMPLEMENTATION
 This folder contains 2 files.
-1.raft.go: This files contains all the events handled by the state machine in the state follower, candidate and leader. State machine generate action in response to the event. 
-
-2.raft_test.go: This file contains test cases to generate events and state of the state machine. Check whether the received action matches with the expected action or not.
+1.Raft.go: This files contains all the events handled by the state machine in the state follower, candidate and leader. State machine generate action in response to the event. 
 
 Build and execute: Browse to the folder containing these files through terminal and type command in terminal
  go test
 
-This command will build and execute all the test cases present in raft_test.go
+This command will build and execute all the test cases present in Raft_Test.go

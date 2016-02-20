@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 	"strconv"
 )
@@ -58,15 +57,15 @@ type AppendEntriesReq struct {
 
 //append entries response
 type AppendEntriesResp struct {
-	from    int
-	term    int
-	success bool
-	count   int
+	from         int
+	term         int
+	success      bool
+	count        int
 	lastLogIndex int
 }
 
 //append request from client struct
-type Append struct{
+type Append struct {
 	data []byte
 }
 
@@ -130,8 +129,8 @@ func (s *Server) ProcessEvent(inputEvents Event) []Action {
 			result = onTimeOutFollower(s)
 		//Handle append entry request made by client
 		case Append:
-			appendObj:=inputEvents.(Append)
-			result=OnAppendRequestFromClientToFollower(s,appendObj)
+			appendObj := inputEvents.(Append)
+			result = OnAppendRequestFromClientToFollower(s, appendObj)
 		}
 
 	} else if s.state == "CANDIDATE" {
@@ -158,8 +157,8 @@ func (s *Server) ProcessEvent(inputEvents Event) []Action {
 			result = OnAppendEntriesRespCandidate(s, AppendEntriesRespObj)
 		//Handle append entry request made by client
 		case Append:
-			appendObj:=inputEvents.(Append)
-			result=OnAppendRequestFromClientToCandidate(s,appendObj)
+			appendObj := inputEvents.(Append)
+			result = OnAppendRequestFromClientToCandidate(s, appendObj)
 
 		}
 	} else if s.state == "LEADER" {
@@ -182,15 +181,13 @@ func (s *Server) ProcessEvent(inputEvents Event) []Action {
 			result = OnAppendEntriesReqLeader(s, AppendEntriesReqObj)
 		//Handle append entry request made by client
 		case Append:
-			appendObj:=inputEvents.(Append)
-			result=OnAppendRequestFromClientToLeader(s,appendObj)
+			appendObj := inputEvents.(Append)
+			result = OnAppendRequestFromClientToLeader(s, appendObj)
 		//Handle Vote response coming to Leader
 		case AppendEntriesResp:
 			AppendEntriesRespObj := inputEvents.(AppendEntriesResp)
 			result = OnAppendEntriesRespLeader(s, AppendEntriesRespObj)
 		}
-	} else {
-		fmt.Println("NO STATE")
 	}
 
 	return result
@@ -249,9 +246,9 @@ func OnVoteReqFollower(s *Server, msg VoteReq) []Action {
 func OnVoteRespFollower(s *Server, msg VoteResp) []Action {
 	actionArray := make([]Action, 0)
 	//Follower will drop the response but update it's term if term in msg is greater than it's current term
-	if(s.currentTerm<msg.term){
-		s.currentTerm=msg.term
-		s.votedFor=0
+	if s.currentTerm < msg.term {
+		s.currentTerm = msg.term
+		s.votedFor = 0
 		//send state store action
 		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
 	}
@@ -269,13 +266,13 @@ func OnAppendEntriesReqFollower(s *Server, msg AppendEntriesReq) []Action {
 	}
 	if s.currentTerm > msg.term {
 		// received request term is less then  server's current term then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 	} else if logLength < msg.lastLogIndex {
 		//last log index of follower log not matches with received last log index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 	} else if msg.lastLogIndex != -1 && logLength != 0 && s.log[msg.lastLogIndex].term != msg.lastLogTerm {
 		//last log index of follower log  matches with received last log index but terms differs on that index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 	} else {
 		//delete enteries from log starting from lastLogIndex+1 to end
 		i := msg.lastLogIndex + 1
@@ -304,7 +301,7 @@ func OnAppendEntriesReqFollower(s *Server, msg AppendEntriesReq) []Action {
 			actionArray = append(actionArray, Commit{index: s.commitIndex, data: s.log[s.commitIndex].data})
 		}
 		//send append entry action for the received request
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: true,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: true, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 
 	}
 	if latestTerm > s.currentTerm {
@@ -319,12 +316,12 @@ func OnAppendEntriesReqFollower(s *Server, msg AppendEntriesReq) []Action {
 }
 
 //Handle append entry resp request coming to follower
-func  OnAppendEntriesRespFollower(s *Server, msg AppendEntriesResp) []Action {
+func OnAppendEntriesRespFollower(s *Server, msg AppendEntriesResp) []Action {
 	actionArray := make([]Action, 0)
 	//Follower will drop the response but update it's term if term in msg is greater than it's current term
-	if(s.currentTerm<msg.term){
-		s.currentTerm=msg.term
-		s.votedFor=0
+	if s.currentTerm < msg.term {
+		s.currentTerm = msg.term
+		s.votedFor = 0
 		//send state store action
 		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
 	}
@@ -360,12 +357,14 @@ func onTimeOutFollower(s *Server) []Action {
 	return actionArray
 
 }
+
 //Handle coming append  request from client to follower
 func OnAppendRequestFromClientToFollower(s *Server, msg Append) []Action {
 	actionArray := make([]Action, 0)
-	actionArray=append(actionArray,Commit{data:msg.data,error:"Leader is at Id "+strconv.Itoa(s.leader)})
+	actionArray = append(actionArray, Commit{data: msg.data, error: "Leader is at Id " + strconv.Itoa(s.leader)})
 	return actionArray
 }
+
 //********************************************Candidate events***********************************************************
 //*************************************************************************************************************************
 //Handle Coming Vote request to Candidate
@@ -460,10 +459,10 @@ func OnVoteRespCandidate(s *Server, msg VoteResp) []Action {
 		}
 		//set next index and match index
 		s.nextIndex = make([]int, 4)
-		s.matchIndex=make([]int, 4)
-		for i:=0;i<4;i++{
-			s.nextIndex[i]=len(s.log)
-			s.matchIndex[i]=0
+		s.matchIndex = make([]int, 4)
+		for i := 0; i < 4; i++ {
+			s.nextIndex[i] = len(s.log)
+			s.matchIndex[i] = 0
 		}
 		logEntries := make([]LogInfo, 0)
 		for i := 0; i < len(s.peers); i++ {
@@ -513,19 +512,19 @@ func OnAppendEntriesReqCandidate(s *Server, msg AppendEntriesReq) []Action {
 	}
 	if s.currentTerm > msg.term {
 		// received request term is less then  server's current term then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 	} else if logLength < msg.lastLogIndex {
 		//convert to follower mode on receiving append entry req from leader
 		s.state = "FOLLOWER"
 		s.leader = msg.leaderId
 		//last log index of follower log not matches with received last log index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 	} else if msg.lastLogIndex != -1 && logLength != 0 && s.log[msg.lastLogIndex].term != msg.lastLogTerm {
 		//convert to follower mode on receiving append entry req from leader
 		s.leader = msg.leaderId
 		s.state = "FOLLOWER"
 		//last log index of follower log  matches with received last log index but terms differs on that index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 	} else {
 		//delete enteries from log starting from lastLogIndex+1 to end
 		i := msg.lastLogIndex + 1
@@ -553,7 +552,7 @@ func OnAppendEntriesReqCandidate(s *Server, msg AppendEntriesReq) []Action {
 			//send commit action to raft node
 			actionArray = append(actionArray, Commit{index: s.commitIndex, data: s.log[s.commitIndex].data})
 		}
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: true,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: true, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 
 	}
 	//In case candidate has rejected append entry request from the sever with higher term, then update the term and clear votedfor
@@ -570,13 +569,13 @@ func OnAppendEntriesReqCandidate(s *Server, msg AppendEntriesReq) []Action {
 }
 
 //Handle append entry resp request coming to follower
-func  OnAppendEntriesRespCandidate(s *Server, msg AppendEntriesResp) []Action {
+func OnAppendEntriesRespCandidate(s *Server, msg AppendEntriesResp) []Action {
 	actionArray := make([]Action, 0)
 	//Follower will drop the response but update it's term if term in msg is greater than it's current term
-	if(s.currentTerm<msg.term){
-		s.currentTerm=msg.term
-		s.votedFor=0
-		s.state="FOLLOWER"
+	if s.currentTerm < msg.term {
+		s.currentTerm = msg.term
+		s.votedFor = 0
+		s.state = "FOLLOWER"
 		//send state store action
 		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
 	}
@@ -586,7 +585,7 @@ func  OnAppendEntriesRespCandidate(s *Server, msg AppendEntriesResp) []Action {
 //Handle coming append  request from client to candidate
 func OnAppendRequestFromClientToCandidate(s *Server, msg Append) []Action {
 	actionArray := make([]Action, 0)
-	actionArray=append(actionArray,Commit{data:msg.data,error:"Leader is at Id "+strconv.Itoa(s.leader)})
+	actionArray = append(actionArray, Commit{data: msg.data, error: "Leader is at Id " + strconv.Itoa(s.leader)})
 	return actionArray
 }
 
@@ -659,10 +658,10 @@ func onTimeOutLeader(s *Server) []Action {
 	}
 	//set next index and match index
 	s.nextIndex = make([]int, 4)
-	s.matchIndex=make([]int, 4)
-	for i:=0;i<4;i++{
-		s.nextIndex[i]=len(s.log)
-		s.matchIndex[i]=0
+	s.matchIndex = make([]int, 4)
+	for i := 0; i < 4; i++ {
+		s.nextIndex[i] = len(s.log)
+		s.matchIndex[i] = 0
 	}
 
 	//send heatbeat message to all peers
@@ -687,19 +686,19 @@ func OnAppendEntriesReqLeader(s *Server, msg AppendEntriesReq) []Action {
 	}
 	if s.currentTerm >= msg.term {
 		// received request term is less then or equal server's current term then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 	} else if logLength < msg.lastLogIndex {
 		//convert to follower mode on receiving append entry req from leader
 		s.state = "FOLLOWER"
 		s.leader = msg.leaderId
 		//last log index of follower log not matches with received last log index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 	} else if msg.lastLogIndex != -1 && logLength != 0 && s.log[msg.lastLogIndex].term != msg.lastLogTerm {
 		//convert to follower mode on receiving append entry req from leader
 		s.leader = msg.leaderId
 		s.state = "FOLLOWER"
 		//last log index of follower log  matches with received last log index but terms differs on that index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 	} else {
 		//delete enteries from log starting from lastLogIndex+1 to end
 		i := msg.lastLogIndex + 1
@@ -727,7 +726,7 @@ func OnAppendEntriesReqLeader(s *Server, msg AppendEntriesReq) []Action {
 			//send commit action to raft node
 			actionArray = append(actionArray, Commit{index: s.commitIndex, data: s.log[s.commitIndex].data})
 		}
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: true,from:serverId,count:len(msg.entries),lastLogIndex:msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: true, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
 
 	}
 	//In case server has rejected append entry request from the sever with higher term, then update the term and clear votedfor
@@ -744,23 +743,23 @@ func OnAppendEntriesReqLeader(s *Server, msg AppendEntriesReq) []Action {
 }
 
 //Handle coming append data request from client in leader state
-func OnAppendRequestFromClientToLeader(s *Server, msg Append) []Action{	
+func OnAppendRequestFromClientToLeader(s *Server, msg Append) []Action {
 	actionArray := make([]Action, 0)
 	//leader will get his last log index
-	lastIndex:=len(s.log)-1
+	lastIndex := len(s.log) - 1
 	//Leader will append client data in his log first
-	s.log=append(s.log,LogInfo{term:s.currentTerm,data:msg.data})
+	s.log = append(s.log, LogInfo{term: s.currentTerm, data: msg.data})
 	//send logstore action to raft node
-	actionArray = append(actionArray, LogStore{index: (lastIndex+1) , data: msg.data})
+	actionArray = append(actionArray, LogStore{index: (lastIndex + 1), data: msg.data})
 	//set next index and match index
 	s.nextIndex = make([]int, 4)
-	s.matchIndex=make([]int, 4)
-	for i:=0;i<4;i++{
-		s.nextIndex[i]=lastIndex+1
-		s.matchIndex[i]=0
+	s.matchIndex = make([]int, 4)
+	for i := 0; i < 4; i++ {
+		s.nextIndex[i] = lastIndex + 1
+		s.matchIndex[i] = 0
 	}
 	logEntries := make([]LogInfo, 0)
-	logEntries=append(logEntries, LogInfo{term: s.currentTerm, data: msg.data})
+	logEntries = append(logEntries, LogInfo{term: s.currentTerm, data: msg.data})
 	//send append entry request to all peers
 	for i := 0; i < len(s.peers); i++ {
 		actionArray = append(actionArray, Send{from: s.peers[i], event: AppendEntriesReq{term: s.currentTerm, leaderId: s.leader, lastLogIndex: lastIndex, lastLogTerm: s.log[lastIndex].term, entries: logEntries, leaderCommit: s.commitIndex}})
@@ -769,62 +768,62 @@ func OnAppendRequestFromClientToLeader(s *Server, msg Append) []Action{
 }
 
 //Handle append entry resp request coming to leader
-func  OnAppendEntriesRespLeader(s *Server, msg AppendEntriesResp) []Action {
+func OnAppendEntriesRespLeader(s *Server, msg AppendEntriesResp) []Action {
 	actionArray := make([]Action, 0)
-	id:=msg.from-1
-	if(s.currentTerm<msg.term){
+	id := msg.from - 1
+	if s.currentTerm < msg.term {
 		// our state machine is lagging behind so convert to follower and update term
-		s.currentTerm=msg.term
-		s.votedFor=0
-		s.state="FOLLOWER"
+		s.currentTerm = msg.term
+		s.votedFor = 0
+		s.state = "FOLLOWER"
 		//send state store action
 		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
-	}else{		
-		if(msg.success==false){
-			//decrease next index for the follower server id from which we have received this negative response			
-			if(s.nextIndex[id]>0){
-				s.nextIndex[id]=s.nextIndex[id]-1
-				}else{
-					s.nextIndex[id]=0
-				}
-			
+	} else {
+		if msg.success == false {
+			//decrease next index for the follower server id from which we have received this negative response
+			if s.nextIndex[id] > 0 {
+				s.nextIndex[id] = s.nextIndex[id] - 1
+			} else {
+				s.nextIndex[id] = 0
+			}
+
 			//update last log index and term needed to sent to the follower server
-			lastIndex:=msg.lastLogIndex-1
-			lastTerm:=0
-			if(lastIndex>=0){
-				lastTerm=s.log[lastIndex].term 
-			}			
+			lastIndex := msg.lastLogIndex - 1
+			lastTerm := 0
+			if lastIndex >= 0 {
+				lastTerm = s.log[lastIndex].term
+			}
 			//get slice of data from logs starting from last index to length
-			entries:=s.log[lastIndex+1:len(s.log)]			
+			entries := s.log[lastIndex+1 : len(s.log)]
 			//send append entry request again to that server
 			actionArray = append(actionArray, Send{from: msg.from, event: AppendEntriesReq{term: s.currentTerm, leaderId: s.leader, lastLogIndex: lastIndex, lastLogTerm: lastTerm, entries: entries, leaderCommit: s.commitIndex}})
 
-		}else{
+		} else {
 			//update  match index if positive append entry response is received from follower for it's id
-			if(msg.lastLogIndex+msg.count)>=s.matchIndex[id]{
-				s.matchIndex[id]=msg.lastLogIndex+msg.count				
+			if (msg.lastLogIndex + msg.count) >= s.matchIndex[id] {
+				s.matchIndex[id] = msg.lastLogIndex + msg.count
 			}
 		}
 		// make a copy of matchindex in order to sort
-		matchIndexCopy := make([]int, 4)		
+		matchIndexCopy := make([]int, 4)
 		copy(matchIndexCopy, s.matchIndex)
 		sort.IntSlice(matchIndexCopy).Sort()
-		
-		
+
 		//commit index is that match index which is present on majority
-		N:=matchIndexCopy[2]		
-		//Leader will commit entries only if it's stored on a majority of servers and atleast one new entry from leader's term must also be stored on majority of servers. 
-		if(N>s.commitIndex && s.log[N].term==s.currentTerm){
+		N := matchIndexCopy[2]
+		//Leader will commit entries only if it's stored on a majority of servers and atleast one new entry from leader's term must also be stored on majority of servers.
+		if N > s.commitIndex && s.log[N].term == s.currentTerm {
 			//Update new commit index
-			s.commitIndex=N
+			s.commitIndex = N
 			//send commit action to client
-			actionArray = append(actionArray,Commit{index:N,data:[]byte("Response")})
+			actionArray = append(actionArray, Commit{index: N, data: []byte("Response")})
 		}
-		
+
 	}
 	return actionArray
 }
 
+//to find minimum of two numbers
 func min(i int, j int) int {
 	if i >= j {
 		return i
