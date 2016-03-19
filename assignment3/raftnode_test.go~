@@ -1,0 +1,80 @@
+package main
+
+import (
+	"testing"
+	//"fmt"
+	"time"
+)
+
+
+func TestBasic (t *testing.T) {
+	rafts := makeRafts() // array of []raft.Node
+	ldr := getLeader(rafts)
+	ldr.Append([]byte("foo"))
+	rafts[2].TimeOut()
+	//time.Sleep(1*time.Second)
+	time.Sleep(1*time.Second)
+	/*for _, node:= rafts{
+		select {
+				// to avoid blocking on channel.
+				case ci := <- node.CommitChannel():
+				if ci.err != nil {
+					t.Fatal(ci.err)
+				}
+				if string(ci.data) != "foo" {
+					t.Fatal("Got different data")
+				}
+			
+				default: t.Fatal("Expected message on all nodes")
+		}
+	}	*/
+}
+
+func getDetails(action []Action, index int) (string, string, int, bool, int, int) {
+	var act, event string
+	var term int
+	var resp bool
+	var vote int
+	var to int
+	typeaction := action[index]
+	ty := reflect.TypeOf(typeaction)
+	act = ty.Name()
+	switch act {
+	case "Send":
+		obj := typeaction.(Send)
+		to = obj.from
+		ty = reflect.TypeOf(obj.event)
+		event = ty.Name()
+		switch event {
+		case "VoteResp":
+			respObj := obj.event.(VoteResp)
+			term = respObj.term
+			resp = respObj.voteGranted
+		case "AppendEntriesResp":
+			respObj := obj.event.(AppendEntriesResp)
+			term = respObj.term
+			resp = respObj.success
+		case "VoteReq":
+			respObj := obj.event.(VoteReq)
+			term = respObj.term
+			vote = respObj.candidateId
+		case "AppendEntriesReq":
+			respObj := obj.event.(AppendEntriesReq)
+			term = respObj.term
+			vote = respObj.leaderId
+		}
+	case "LogStore":
+		obj := typeaction.(LogStore)
+		term = obj.index
+	case "Commit":
+		obj := typeaction.(Commit)
+		term = obj.index
+	case "StateStore":
+		obj := typeaction.(StateStore)
+		term = obj.term
+		vote = obj.votedFor
+
+	}
+	return act, event, term, resp, vote, to
+}
+

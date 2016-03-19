@@ -7,67 +7,67 @@ import (
 
 //attributs of servers
 type Server struct {
-	currentTerm int
-	votedFor    int
-	log         []LogInfo
-	commitIndex int
-	nextIndex   []int
-	matchIndex  []int
-	leader      int
-	state       string
-	peers       []int
-	voteGranted []int
-	myId 		int
+	CurrentTerm int
+	VotedFor    int
+	Log         []LogInfo
+	CommitIndex int
+	NextIndex   []int
+	MatchIndex  []int
+	Leader      int
+	State       string
+	Peers       []int
+	VoteGranted []int
+	MyId        int
 }
 
-// attributes of log
+// attributes of Log
 type LogInfo struct {
-	term int
-	data []byte
+	Term int
+	Data []byte
 }
 
 //assign severid and number of servers
-var serverId int = 100
+//var s.MyId int = 100
 var quorumSize int = 5
 
 // VoteRequest RPC
 type VoteReq struct {
-	//from 		 int
-	term         int // the term
-	candidateId  int
-	lastLogIndex int
-	lastLogTerm  int
+	//From 		 int
+	Term         int // the Term
+	CandidateId  int
+	LastLogIndex int
+	LastLogTerm  int
 }
 
 // VoteResponse
 type VoteResp struct {
-	term        int
-	voteGranted bool
-	voterId     int
+	Term        int
+	VoteGranted bool
+	VoterId     int
 }
 
-//append entries RPC
+//append Entries RPC
 type AppendEntriesReq struct {
-	term         int
-	leaderId     int
-	lastLogIndex int
-	lastLogTerm  int
-	entries      []LogInfo
-	leaderCommit int
+	Term         int
+	LeaderId     int
+	LastLogIndex int
+	LastLogTerm  int
+	Entries      []LogInfo
+	LeaderCommit int
 }
 
-//append entries response
+//append Entries response
 type AppendEntriesResp struct {
-	from         int
-	term         int
-	success      bool
-	count        int
-	lastLogIndex int
+	From         int
+	Term         int
+	Success      bool
+	Count        int
+	LastLogIndex int
 }
 
-//append request from client struct
+//append request From client struct
 type Append struct {
-	data []byte
+	Data []byte
 }
 
 type Timeout struct {
@@ -78,9 +78,9 @@ type Event interface{}
 type Action interface{}
 
 type Send struct {
-	from int
-	//event can be vote req/resp and append rpc request/response
-	event Event
+	From int
+	//Event can be vote req/resp and append rpc request/response
+	Event Event
 }
 
 type Alarm struct {
@@ -88,26 +88,26 @@ type Alarm struct {
 }
 
 type LogStore struct {
-	index int
-	data  []byte
+	Index int
+	Data  []byte
 }
 
 type Commit struct {
-	index int
-	data  []byte
-	error string
+	Index int
+	Data  []byte
+	Error string
 }
 
 type StateStore struct {
-	term     int
-	votedFor int
+	Term     int
+	VotedFor int
 }
 
 //Function to handle all incoming request to RAFT State Machine
 func (s *Server) ProcessEvent(inputEvents Event) []Action {
 	result := make([]Action, 0)
-	//check state of the server
-	if s.state == "FOLLOWER" {
+	//check State of the server
+	if s.State == "FOLLOWER" {
 		switch inputEvents.(type) {
 		//Handle Vote request coming to follower
 		case VoteReq:
@@ -125,7 +125,7 @@ func (s *Server) ProcessEvent(inputEvents Event) []Action {
 		case AppendEntriesResp:
 			AppendEntriesRespObj := inputEvents.(AppendEntriesResp)
 			result = OnAppendEntriesRespFollower(s, AppendEntriesRespObj)
-		//Handle timeout event
+		//Handle timeout Event
 		case Timeout:
 			result = onTimeOutFollower(s)
 		//Handle append entry request made by client
@@ -134,7 +134,7 @@ func (s *Server) ProcessEvent(inputEvents Event) []Action {
 			result = OnAppendRequestFromClientToFollower(s, appendObj)
 		}
 
-	} else if s.state == "CANDIDATE" {
+	} else if s.State == "CANDIDATE" {
 
 		switch inputEvents.(type) {
 		//Handle Vote request coming to candidate
@@ -145,7 +145,7 @@ func (s *Server) ProcessEvent(inputEvents Event) []Action {
 		case VoteResp:
 			voteRespObj := inputEvents.(VoteResp)
 			result = OnVoteRespCandidate(s, voteRespObj)
-		//Handle timeout event
+		//Handle timeout Event
 		case Timeout:
 			result = onTimeOutCandidate(s)
 		//Handle append rpc request coming to candidate
@@ -162,18 +162,18 @@ func (s *Server) ProcessEvent(inputEvents Event) []Action {
 			result = OnAppendRequestFromClientToCandidate(s, appendObj)
 
 		}
-	} else if s.state == "LEADER" {
+	} else if s.State == "LEADER" {
 
 		switch inputEvents.(type) {
-		//Handle Vote request coming to leader
+		//Handle Vote request coming to Leader
 		case VoteReq:
 			voteReqObj := inputEvents.(VoteReq)
 			result = OnVoteReqLeader(s, voteReqObj)
-		//Handle Vote response coming to leader
+		//Handle Vote response coming to Leader
 		case VoteResp:
 			voteRespObj := inputEvents.(VoteResp)
 			result = OnVoteRespLeader(s, voteRespObj)
-		//Handle timeout event
+		//Handle timeout Event
 		case Timeout:
 			result = onTimeOutLeader(s)
 		//Handle append entry request
@@ -194,50 +194,50 @@ func (s *Server) ProcessEvent(inputEvents Event) []Action {
 	return result
 }
 
-//*********************FOLLOWER STATE EVENTS*************************************************************
+//*********************FOLLOWER State EventS*************************************************************
 //*******************************************************************************************************
 
 //Handle Vote request coming to follower
 func OnVoteReqFollower(s *Server, msg VoteReq) []Action {
 	actionArray := make([]Action, 0)
-	logIndex := len(s.log)
-	logTerm := 0
-	if logIndex > 0 {
-		//get last term from logs
-		logTerm = s.log[logIndex-1].term
+	LogIndex := len(s.Log)
+	LogTerm := 0
+	if LogIndex > 0 {
+		//get last Term From Logs
+		LogTerm = s.Log[LogIndex-1].Term
 	}
 
 	var latestTerm int = 0
-	if s.currentTerm < msg.term {
-		//store latest term
-		latestTerm = msg.term
+	if s.CurrentTerm < msg.Term {
+		//store latest Term
+		latestTerm = msg.Term
 	}
-	if s.currentTerm > msg.term {
-		// received request term is less then  server's current term then don't vote
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
-	} else if logTerm > 0 && logTerm > msg.lastLogTerm {
-		// received request last log term is less then server's last log term then don't vote
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
-	} else if (logTerm == msg.lastLogTerm) && logIndex > 0 && logIndex-1 > msg.lastLogIndex {
-		// received request last log term is equal to server's last log term but last log index differs then don't vote
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
-	} else if s.votedFor == 0 || s.votedFor == msg.candidateId {
-		//if all criteria satisfies and follower has not voted for this term or voted for the same candidate id then vote and update current term,voted for
-		s.currentTerm = msg.term
-		s.votedFor = msg.candidateId
+	if s.CurrentTerm > msg.Term {
+		// received request Term is less then  server's current Term then don't vote
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
+	} else if LogTerm > 0 && LogTerm > msg.LastLogTerm {
+		// received request last Log Term is less then server's last Log Term then don't vote
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
+	} else if (LogTerm == msg.LastLogTerm) && LogIndex > 0 && LogIndex-1 > msg.LastLogIndex {
+		// received request last Log Term is equal to server's last Log Term but last Log Index differs then don't vote
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
+	} else if s.VotedFor == 0 || s.VotedFor == msg.CandidateId {
+		//if all criteria satisfies and follower has not voted for this Term or voted for the same candidate id then vote and update current Term,voted for
+		s.CurrentTerm = msg.Term
+		s.VotedFor = msg.CandidateId
 		//send the vote	response
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: true, voterId: serverId}})
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: true, VoterId: s.MyId}})
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	} else {
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
 	}
-	if latestTerm > s.currentTerm {
-		//In case servers has not granted his vote to the sever with higher term, then update the term and clear votedfor
-		s.currentTerm = latestTerm
-		s.votedFor = 0
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+	if latestTerm > s.CurrentTerm {
+		//In case servers has not granted his vote to the sever with higher Term, then update the Term and clear VotedFor
+		s.CurrentTerm = latestTerm
+		s.VotedFor = 0
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
 	//return action
 	return actionArray
@@ -246,12 +246,12 @@ func OnVoteReqFollower(s *Server, msg VoteReq) []Action {
 //Handle vote resp request coming to follower
 func OnVoteRespFollower(s *Server, msg VoteResp) []Action {
 	actionArray := make([]Action, 0)
-	//Follower will drop the response but update it's term if term in msg is greater than it's current term
-	if s.currentTerm < msg.term {
-		s.currentTerm = msg.term
-		s.votedFor = 0
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+	//Follower will drop the response but update it's Term if Term in msg is greater than it's current Term
+	if s.CurrentTerm < msg.Term {
+		s.CurrentTerm = msg.Term
+		s.VotedFor = 0
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
 	return actionArray
 }
@@ -259,58 +259,67 @@ func OnVoteRespFollower(s *Server, msg VoteResp) []Action {
 //Handle Append entry request coming to follower
 func OnAppendEntriesReqFollower(s *Server, msg AppendEntriesReq) []Action {
 	actionArray := make([]Action, 0)
-	logLength := len(s.log)
+	LogLength := len(s.Log)
 	var latestTerm int = 0
-	if s.currentTerm < msg.term {
-		//store latest term
-		latestTerm = msg.term
+	if s.CurrentTerm < msg.Term {
+		//store latest Term
+		latestTerm = msg.Term
 	}
-	if s.currentTerm > msg.term {
-		// received request term is less then  server's current term then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
-	} else if logLength < msg.lastLogIndex {
-		//last log index of follower log not matches with received last log index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
-	} else if msg.lastLogIndex != -1 && logLength != 0 && s.log[msg.lastLogIndex].term != msg.lastLogTerm {
-		//last log index of follower log  matches with received last log index but terms differs on that index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
+	if s.CurrentTerm > msg.Term {
+		// received request Term is less then  server's current Term then don't append
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: false, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
+	} else if LogLength < msg.LastLogIndex {
+		//last Log Index of follower Log not matches with received last Log Index then don't append
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: false, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
+	} else if msg.LastLogIndex != -1 && LogLength != 0 && s.Log[msg.LastLogIndex].Term != msg.LastLogTerm {
+		//last Log Index of follower Log  matches with received last Log Index but Terms differs on that Index then don't append
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: false, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
 	} else {
-		//delete enteries from log starting from lastLogIndex+1 to end
-		i := msg.lastLogIndex + 1
-		//check data
-		if logLength > i {
-			s.log = append(s.log[:i], s.log[:i+1]...)
+		//delete enteries From Log starting From LastLogIndex+1 to end
+		if len(msg.Entries) > 0 {
+			i := msg.LastLogIndex + 1
+			//check Data
+			if LogLength > i {
+				s.Log = append(s.Log[:i], s.Log[:i+1]...)
+			}
+			if len(msg.Entries) > 0 {
+				//send Log store action to raft node
+				//fmt.Println("appendlastindex",msg.LastLogIndex,msg.Entries)
+				actionArray = append(actionArray, LogStore{Index: i, Data: msg.Entries[0].Data})
+				s.Log = append(s.Log, msg.Entries...)
+			}
 		}
-		if len(msg.entries) > 0 {
-			//send log store action to raft node
-			actionArray = append(actionArray, LogStore{index: i, data: msg.entries[msg.lastLogIndex+1].data})
-			s.log = append(s.log, msg.entries...)
+		//set Leader id
+		s.Leader = msg.LeaderId
+		//update Term and voted for if Term in append entry rpc is greater than follower current Term
+		if latestTerm > s.CurrentTerm {
+			s.CurrentTerm = latestTerm
+			s.VotedFor = 0
+			//send State store action to raft node
+			actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 		}
-		//set leader id
-		s.leader = msg.leaderId
-		//update term and voted for if term in append entry rpc is greater than follower current term
-		if latestTerm > s.currentTerm {
-			s.currentTerm = latestTerm
-			s.votedFor = 0
-			//send state store action to raft node
-			actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
-		}
-		if msg.leaderCommit > s.commitIndex {
-			s.commitIndex = min(msg.leaderCommit, i-1)
-			//check data index******
+		if msg.LeaderCommit > s.CommitIndex {
+			i := msg.LastLogIndex + 1
+			if len(msg.Entries) > 0 {
+				s.CommitIndex = min(msg.LeaderCommit, i-1)
+			} else {
+				s.CommitIndex = msg.LeaderCommit
+			}
+
+			//check Data Index******
 			//send commit action to raft node
-			actionArray = append(actionArray, Commit{index: s.commitIndex, data: s.log[s.commitIndex].data})
+			actionArray = append(actionArray, Commit{Index: s.CommitIndex, Data: s.Log[s.CommitIndex].Data})
 		}
 		//send append entry action for the received request
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: true, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: true, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
 
 	}
-	if latestTerm > s.currentTerm {
-		//In case follower has rejected append entry request from the sever with higher term, then update the term and clear votedfor
-		s.currentTerm = latestTerm
-		s.votedFor = 0
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+	if latestTerm > s.CurrentTerm {
+		//In case follower has rejected append entry request From the sever with higher Term, then update the Term and clear VotedFor
+		s.CurrentTerm = latestTerm
+		s.VotedFor = 0
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
 	//return action
 	return actionArray
@@ -319,12 +328,12 @@ func OnAppendEntriesReqFollower(s *Server, msg AppendEntriesReq) []Action {
 //Handle append entry resp request coming to follower
 func OnAppendEntriesRespFollower(s *Server, msg AppendEntriesResp) []Action {
 	actionArray := make([]Action, 0)
-	//Follower will drop the response but update it's term if term in msg is greater than it's current term
-	if s.currentTerm < msg.term {
-		s.currentTerm = msg.term
-		s.votedFor = 0
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+	//Follower will drop the response but update it's Term if Term in msg is greater than it's current Term
+	if s.CurrentTerm < msg.Term {
+		s.CurrentTerm = msg.Term
+		s.VotedFor = 0
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
 	return actionArray
 }
@@ -333,25 +342,25 @@ func OnAppendEntriesRespFollower(s *Server, msg AppendEntriesResp) []Action {
 func onTimeOutFollower(s *Server) []Action {
 	actionArray := make([]Action, 0)
 	//convert to candidate
-	s.state = "CANDIDATE"
-	//increase current term by 1
-	s.currentTerm = s.currentTerm + 1
+	s.State = "CANDIDATE"
+	//increase current Term by 1
+	s.CurrentTerm = s.CurrentTerm + 1
 	//vote for self
-	s.votedFor = serverId
-	//send state store action
-	actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
-	//send vote request message to peers
+	s.VotedFor = s.MyId
+	//send State store action
+	actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
+	//send vote request message to Peers
 	lastIndex := -1
 	lastTerm := -1
-	if len(s.log) > 0 {
-		//get last log index and term
-		lastIndex = len(s.log) - 1
-		lastTerm = s.log[lastIndex].term
+	if len(s.Log) > 0 {
+		//get last Log Index and Term
+		lastIndex = len(s.Log) - 1
+		lastTerm = s.Log[lastIndex].Term
 	}
 
-	for i := 0; i < len(s.peers); i++ {
+	for i := 0; i < len(s.Peers); i++ {
 		//vote request action
-		actionArray = append(actionArray, Send{from: s.peers[i], event: VoteReq{term: s.currentTerm, candidateId: serverId, lastLogIndex: lastIndex, lastLogTerm: lastTerm}})
+		actionArray = append(actionArray, Send{From: s.Peers[i], Event: VoteReq{Term: s.CurrentTerm, CandidateId: s.MyId, LastLogIndex: lastIndex, LastLogTerm: lastTerm}})
 	}
 	//reset timer
 	actionArray = append(actionArray, Alarm{10})
@@ -359,122 +368,124 @@ func onTimeOutFollower(s *Server) []Action {
 
 }
 
-//Handle coming append  request from client to follower
+//Handle coming append  request From client to follower
 func OnAppendRequestFromClientToFollower(s *Server, msg Append) []Action {
 	actionArray := make([]Action, 0)
-	actionArray = append(actionArray, Commit{data: msg.data, error: "Leader is at Id " + strconv.Itoa(s.leader)})
+	actionArray = append(actionArray, Commit{Data: msg.Data, Error: "Leader is at Id " + strconv.Itoa(s.Leader)})
 	return actionArray
 }
 
-//********************************************Candidate events***********************************************************
+//********************************************Candidate Events***********************************************************
 //*************************************************************************************************************************
 //Handle Coming Vote request to Candidate
 func OnVoteReqCandidate(s *Server, msg VoteReq) []Action {
 	actionArray := make([]Action, 0)
-	logIndex := len(s.log)
-	logTerm := 0
-	if logIndex > 0 {
-		//get last term from logs
-		logTerm = s.log[logIndex-1].term
+	LogIndex := len(s.Log)
+	LogTerm := 0
+	if LogIndex > 0 {
+		//get last Term From Logs
+		LogTerm = s.Log[LogIndex-1].Term
 	}
 	var latestTerm int = 0
-	if s.currentTerm < msg.term {
-		//store latest term
-		latestTerm = msg.term
+	if s.CurrentTerm < msg.Term {
+		//store latest Term
+		latestTerm = msg.Term
 	}
 
-	if s.currentTerm >= msg.term {
-		// received request term is less then or equal server's current term then don't vote
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
-	} else if logTerm > 0 && logTerm > msg.lastLogTerm {
-		// received request last log term is less then server's last log term then don't vote
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
-	} else if (logTerm == msg.lastLogTerm) && logIndex > 0 && logIndex-1 > msg.lastLogIndex {
-		// received request last log term is equal to server's last log term but last log index differs then don't vote
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
+	if s.CurrentTerm >= msg.Term {
+		// received request Term is less then or equal server's current Term then don't vote
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
+	} else if LogTerm > 0 && LogTerm > msg.LastLogTerm {
+		// received request last Log Term is less then server's last Log Term then don't vote
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
+	} else if (LogTerm == msg.LastLogTerm) && LogIndex > 0 && LogIndex-1 > msg.LastLogIndex {
+		// received request last Log Term is equal to server's last Log Term but last Log Index differs then don't vote
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
 	} else {
-		//if all criteria satisfies and follower has not voted for this higher term  then vote and update current term,voted for
-		s.currentTerm = msg.term
-		s.votedFor = msg.candidateId
-		//convert to follower state
-		s.state = "FOLLOWER"
+		//if all criteria satisfies and follower has not voted for this higher Term  then vote and update current Term,voted for
+		s.CurrentTerm = msg.Term
+		s.VotedFor = msg.CandidateId
+		//convert to follower State
+		s.State = "FOLLOWER"
 		//send the vote	response
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: true, voterId: serverId}})
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: true, VoterId: s.MyId}})
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
-	if latestTerm > s.currentTerm {
-		s.currentTerm = latestTerm
-		s.votedFor = 0
-		//convert to follower state
-		s.state = "FOLLOWER"
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+	if latestTerm > s.CurrentTerm {
+		s.CurrentTerm = latestTerm
+		s.VotedFor = 0
+		//convert to follower State
+		s.State = "FOLLOWER"
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
 	return actionArray
 }
 
-//Handle Vote resp events in candidate state
+//Handle Vote resp Events in candidate State
 func OnVoteRespCandidate(s *Server, msg VoteResp) []Action {
 	actionArray := make([]Action, 0)
 	//As candidate has voted for himself
-	yesVoteCount := 1
+	yesVoteCount := 0
 	noVoteCount := 0
+	s.VoteGranted[s.MyId] = 1
 
-	if s.currentTerm < msg.term {
-		//If msg term is higher than current term convert to follower
-		s.currentTerm = msg.term
-		s.votedFor = 0
-		s.state = "FOLLOWER"
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+	if s.CurrentTerm < msg.Term {
+		//If msg Term is higher than current Term convert to follower
+		s.CurrentTerm = msg.Term
+		s.VotedFor = 0
+		s.State = "FOLLOWER"
+		s.VoteGranted = make([]int, 10)
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 		//reset timer
 		actionArray = append(actionArray, Alarm{10})
-	} else if s.currentTerm == msg.term && msg.voteGranted == true {
+	} else if s.CurrentTerm == msg.Term && msg.VoteGranted == true {
 		//collect yes votes
-		s.voteGranted[msg.voterId-1] = 1
-	} else if s.currentTerm == msg.term && msg.voteGranted == false {
+		s.VoteGranted[msg.VoterId-1] = 1
+	} else if s.CurrentTerm == msg.Term && msg.VoteGranted == false {
 		//collect no votes
-		s.voteGranted[msg.voterId-1] = -1
+		s.VoteGranted[msg.VoterId-1] = -1
 	}
 
 	neededVotes := (quorumSize + 1) / 2
-	// 1 for Yes votes, 0 for No vote , -1 if not yet received vote response from peer
-	for i := 0; i < 4; i++ {
-		if s.voteGranted[i] == 1 {
+	// 1 for Yes votes, 0 for No vote , -1 if not yet received vote response From peer
+	for i := 0; i < 5; i++ {
+		if s.VoteGranted[i] == 1 {
 			yesVoteCount++
 		}
-		if s.voteGranted[i] == -1 {
+		if s.VoteGranted[i] == -1 {
 			noVoteCount++
 		}
 	}
 	//sever has received majority of yes votes
 	if yesVoteCount >= neededVotes {
-		s.state = "LEADER"
-		s.leader = serverId
+		s.State = "LEADER"
+		s.Leader = s.MyId
 		//send heartbeat message
 		lastIndex := -1
 		lastTerm := -1
-		if len(s.log) > 0 {
-			lastIndex = len(s.log) - 1
-			lastTerm = s.log[lastIndex].term
+		if len(s.Log) > 0 {
+			lastIndex = len(s.Log) - 1
+			lastTerm = s.Log[lastIndex].Term
 		}
-		//set next index and match index
-		s.nextIndex = make([]int, 4)
-		s.matchIndex = make([]int, 4)
+		//set next Index and match Index
+		s.NextIndex = make([]int, 10)
+		s.MatchIndex = make([]int, 10)
 		for i := 0; i < 4; i++ {
-			s.nextIndex[i] = len(s.log)
-			s.matchIndex[i] = 0
+			s.NextIndex[i] = len(s.Log)
+			s.MatchIndex[i] = 0
 		}
-		logEntries := make([]LogInfo, 0)
-		for i := 0; i < len(s.peers); i++ {
-			actionArray = append(actionArray, Send{from: s.peers[i], event: AppendEntriesReq{term: s.currentTerm, leaderId: s.leader, lastLogIndex: lastIndex, lastLogTerm: lastTerm, entries: logEntries, leaderCommit: s.commitIndex}})
+		LogEntries := make([]LogInfo, 0)
+		for i := 0; i < len(s.Peers); i++ {
+			actionArray = append(actionArray, Send{From: s.Peers[i], Event: AppendEntriesReq{Term: s.CurrentTerm, LeaderId: s.Leader, LastLogIndex: lastIndex, LastLogTerm: lastTerm, Entries: LogEntries, LeaderCommit: s.CommitIndex}})
 		}
 		//send alarm action to reset timer
 		actionArray = append(actionArray, Alarm{10})
 
 	} else if noVoteCount >= neededVotes {
-		//stop timer and convert to follower state
-		s.state = "FOLLOWER"
+		//stop timer and convert to follower State
+		s.State = "FOLLOWER"
 		actionArray = append(actionArray, Alarm{10})
 	}
 	return actionArray
@@ -482,19 +493,19 @@ func OnVoteRespCandidate(s *Server, msg VoteResp) []Action {
 
 func onTimeOutCandidate(s *Server) []Action {
 	actionArray := make([]Action, 0)
-	s.currentTerm = s.currentTerm + 1
-	s.votedFor = serverId
-	actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
-	//send vote request message to peers
+	s.CurrentTerm = s.CurrentTerm + 1
+	s.VotedFor = s.MyId
+	actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
+	//send vote request message to Peers
 	lastIndex := -1
 	lastTerm := -1
-	if len(s.log) > 0 {
-		lastIndex = len(s.log) - 1
-		lastTerm = s.log[lastIndex].term
+	if len(s.Log) > 0 {
+		lastIndex = len(s.Log) - 1
+		lastTerm = s.Log[lastIndex].Term
 	}
 
-	for i := 0; i < len(s.peers); i++ {
-		actionArray = append(actionArray, Send{from: s.peers[i], event: VoteReq{term: s.currentTerm, candidateId: serverId, lastLogIndex: lastIndex, lastLogTerm: lastTerm}})
+	for i := 0; i < len(s.Peers); i++ {
+		actionArray = append(actionArray, Send{From: s.Peers[i], Event: VoteReq{Term: s.CurrentTerm, CandidateId: s.MyId, LastLogIndex: lastIndex, LastLogTerm: lastTerm}})
 	}
 
 	actionArray = append(actionArray, Alarm{10})
@@ -502,68 +513,68 @@ func onTimeOutCandidate(s *Server) []Action {
 
 }
 
-//Handle coming append entry request in candidate state
+//Handle coming append entry request in candidate State
 func OnAppendEntriesReqCandidate(s *Server, msg AppendEntriesReq) []Action {
 	actionArray := make([]Action, 0)
-	logLength := len(s.log)
+	LogLength := len(s.Log)
 	var latestTerm int = 0
-	if s.currentTerm < msg.term {
-		//store latest term
-		latestTerm = msg.term
+	if s.CurrentTerm < msg.Term {
+		//store latest Term
+		latestTerm = msg.Term
 	}
-	if s.currentTerm > msg.term {
-		// received request term is less then  server's current term then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
-	} else if logLength < msg.lastLogIndex {
-		//convert to follower mode on receiving append entry req from leader
-		s.state = "FOLLOWER"
-		s.leader = msg.leaderId
-		//last log index of follower log not matches with received last log index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
-	} else if msg.lastLogIndex != -1 && logLength != 0 && s.log[msg.lastLogIndex].term != msg.lastLogTerm {
-		//convert to follower mode on receiving append entry req from leader
-		s.leader = msg.leaderId
-		s.state = "FOLLOWER"
-		//last log index of follower log  matches with received last log index but terms differs on that index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
+	if s.CurrentTerm > msg.Term {
+		// received request Term is less then  server's current Term then don't append
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: false, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
+	} else if LogLength < msg.LastLogIndex {
+		//convert to follower mode on receiving append entry req From Leader
+		s.State = "FOLLOWER"
+		s.Leader = msg.LeaderId
+		//last Log Index of follower Log not matches with received last Log Index then don't append
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: false, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
+	} else if msg.LastLogIndex != -1 && LogLength != 0 && s.Log[msg.LastLogIndex].Term != msg.LastLogTerm {
+		//convert to follower mode on receiving append entry req From Leader
+		s.Leader = msg.LeaderId
+		s.State = "FOLLOWER"
+		//last Log Index of follower Log  matches with received last Log Index but Terms differs on that Index then don't append
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: false, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
 	} else {
-		//delete enteries from log starting from lastLogIndex+1 to end
-		i := msg.lastLogIndex + 1
-		if logLength > i {
-			s.log = append(s.log[:i], s.log[:i+1]...)
+		//delete enteries From Log starting From LastLogIndex+1 to end
+		i := msg.LastLogIndex + 1
+		if LogLength > i {
+			s.Log = append(s.Log[:i], s.Log[:i+1]...)
 		}
-		if len(msg.entries) > 0 {
-			//send log store action to raft node
-			actionArray = append(actionArray, LogStore{index: i, data: msg.entries[msg.lastLogIndex+1].data})
-			s.log = append(s.log, msg.entries...)
+		if len(msg.Entries) > 0 {
+			//send Log store action to raft node
+			actionArray = append(actionArray, LogStore{Index: i, Data: msg.Entries[0].Data})
+			s.Log = append(s.Log, msg.Entries...)
 		}
-		//update term and voted for if term in append entry rpc is greater than follower current term
-		s.leader = msg.leaderId
-		if latestTerm > s.currentTerm {
-			s.currentTerm = msg.term
-			s.votedFor = 0
-			//send state store action to raft node
-			actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+		//update Term and voted for if Term in append entry rpc is greater than follower current Term
+		s.Leader = msg.LeaderId
+		if latestTerm > s.CurrentTerm {
+			s.CurrentTerm = msg.Term
+			s.VotedFor = 0
+			//send State store action to raft node
+			actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 		}
 		//change to follower
-		s.state = "FOLLOWER"
-		if msg.leaderCommit > s.commitIndex {
-			s.commitIndex = min(msg.leaderCommit, i-1)
-			//check data index******
+		s.State = "FOLLOWER"
+		if msg.LeaderCommit > s.CommitIndex {
+			s.CommitIndex = min(msg.LeaderCommit, i-1)
+			//check Data Index******
 			//send commit action to raft node
-			actionArray = append(actionArray, Commit{index: s.commitIndex, data: s.log[s.commitIndex].data})
+			actionArray = append(actionArray, Commit{Index: s.CommitIndex, Data: s.Log[s.CommitIndex].Data})
 		}
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: true, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: true, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
 
 	}
-	//In case candidate has rejected append entry request from the sever with higher term, then update the term and clear votedfor
-	if latestTerm > s.currentTerm {
-		s.currentTerm = latestTerm
-		s.votedFor = 0
+	//In case candidate has rejected append entry request From the sever with higher Term, then update the Term and clear VotedFor
+	if latestTerm > s.CurrentTerm {
+		s.CurrentTerm = latestTerm
+		s.VotedFor = 0
 		//change to follower
-		s.state = "FOLLOWER"
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+		s.State = "FOLLOWER"
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
 	//return action
 	return actionArray
@@ -572,68 +583,68 @@ func OnAppendEntriesReqCandidate(s *Server, msg AppendEntriesReq) []Action {
 //Handle append entry resp request coming to follower
 func OnAppendEntriesRespCandidate(s *Server, msg AppendEntriesResp) []Action {
 	actionArray := make([]Action, 0)
-	//Follower will drop the response but update it's term if term in msg is greater than it's current term
-	if s.currentTerm < msg.term {
-		s.currentTerm = msg.term
-		s.votedFor = 0
-		s.state = "FOLLOWER"
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+	//Follower will drop the response but update it's Term if Term in msg is greater than it's current Term
+	if s.CurrentTerm < msg.Term {
+		s.CurrentTerm = msg.Term
+		s.VotedFor = 0
+		s.State = "FOLLOWER"
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
 	return actionArray
 }
 
-//Handle coming append  request from client to candidate
+//Handle coming append  request From client to candidate
 func OnAppendRequestFromClientToCandidate(s *Server, msg Append) []Action {
 	actionArray := make([]Action, 0)
-	actionArray = append(actionArray, Commit{data: msg.data, error: "Leader is at Id " + strconv.Itoa(s.leader)})
+	actionArray = append(actionArray, Commit{Data: msg.Data, Error: "Leader is at Id " + strconv.Itoa(s.Leader)})
 	return actionArray
 }
 
-//**********************************Leader events**************************************************************
+//**********************************Leader Events**************************************************************
 //**************************************************************************************************************
 //Handle Coming Vote request to Leader
 func OnVoteReqLeader(s *Server, msg VoteReq) []Action {
 	actionArray := make([]Action, 0)
-	logIndex := len(s.log)
-	logTerm := 0
-	if logIndex > 0 {
-		//get last term from logs
-		logTerm = s.log[logIndex-1].term
+	LogIndex := len(s.Log)
+	LogTerm := 0
+	if LogIndex > 0 {
+		//get last Term From Logs
+		LogTerm = s.Log[LogIndex-1].Term
 	}
 	var latestTerm int = 0
-	//store latest term
-	if s.currentTerm < msg.term {
-		latestTerm = msg.term
+	//store latest Term
+	if s.CurrentTerm < msg.Term {
+		latestTerm = msg.Term
 	}
-	if s.currentTerm >= msg.term {
-		// received request term is less then or equal to server's current term then don't vote
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
-	} else if logTerm > 0 && logTerm > msg.lastLogTerm {
-		// received request last log term is less then server's last log term then don't vote
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
-	} else if (logTerm == msg.lastLogTerm) && logIndex > 0 && logIndex-1 > msg.lastLogIndex {
-		// received request last log term is equal to server's last log term but last log index differs then don't vote
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: false, voterId: serverId}})
+	if s.CurrentTerm >= msg.Term {
+		// received request Term is less then or equal to server's current Term then don't vote
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
+	} else if LogTerm > 0 && LogTerm > msg.LastLogTerm {
+		// received request last Log Term is less then server's last Log Term then don't vote
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
+	} else if (LogTerm == msg.LastLogTerm) && LogIndex > 0 && LogIndex-1 > msg.LastLogIndex {
+		// received request last Log Term is equal to server's last Log Term but last Log Index differs then don't vote
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: false, VoterId: s.MyId}})
 	} else {
-		//if all criteria satisfies then vote and update current term,voted for and convert to follower state
-		s.currentTerm = msg.term
-		s.votedFor = msg.candidateId
-		//convert to follower state
-		s.state = "FOLLOWER"
+		//if all criteria satisfies then vote and update current Term,voted for and convert to follower State
+		s.CurrentTerm = msg.Term
+		s.VotedFor = msg.CandidateId
+		//convert to follower State
+		s.State = "FOLLOWER"
 		//send the vote	response
-		actionArray = append(actionArray, Send{from: msg.candidateId, event: VoteResp{term: s.currentTerm, voteGranted: true, voterId: serverId}})
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+		actionArray = append(actionArray, Send{From: msg.CandidateId, Event: VoteResp{Term: s.CurrentTerm, VoteGranted: true, VoterId: s.MyId}})
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
-	if latestTerm > s.currentTerm {
-		//In case servers has not granted his vote to the sever with higher term, then update the term and clear votedfor
-		s.currentTerm = latestTerm
-		s.votedFor = 0
-		//convert to follower state
-		s.state = "FOLLOWER"
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+	if latestTerm > s.CurrentTerm {
+		//In case servers has not granted his vote to the sever with higher Term, then update the Term and clear VotedFor
+		s.CurrentTerm = latestTerm
+		s.VotedFor = 0
+		//convert to follower State
+		s.State = "FOLLOWER"
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
 	//return action
 	return actionArray
@@ -641,183 +652,216 @@ func OnVoteReqLeader(s *Server, msg VoteReq) []Action {
 
 //Handle Coming Vote request to Leader
 func OnVoteRespLeader(s *Server, msg VoteResp) []Action {
-	//Leader will drop vote response message as he has already majority of vote responses in past that's why he is a leader now and it can't receive any vote resp msg from higher term server
+	//Leader will drop vote response message as he has already majority of vote responses in past that's why he is a Leader now and it can't receive any vote resp msg From higher Term server
 	actionArray := make([]Action, 0)
 	return actionArray
 }
 
-//Handle time out event in leader state
+//Handle time out Event in Leader State
 func onTimeOutLeader(s *Server) []Action {
+	//fmt.Println("onTimeOutLeader***")
 	actionArray := make([]Action, 0)
-	logEntries := make([]LogInfo, 0)
+	LogEntries := make([]LogInfo, 0)
 	lastIndex := -1
 	lastTerm := -1
-	if len(s.log) > 0 {
-		//store last log index and term
-		lastIndex = len(s.log) - 1
-		lastTerm = s.log[lastIndex].term
+	if len(s.Log) > 0 {
+		//store last Log Index and Term
+		lastIndex = len(s.Log) - 1
+		lastTerm = s.Log[lastIndex].Term
 	}
-	//set next index and match index
-	s.nextIndex = make([]int, 4)
-	s.matchIndex = make([]int, 4)
+	//set next Index and match Index
+	s.NextIndex = make([]int, 10)
+	s.MatchIndex = make([]int, 10)
 	for i := 0; i < 4; i++ {
-		s.nextIndex[i] = len(s.log)
-		s.matchIndex[i] = 0
+		s.NextIndex[i] = len(s.Log)
+		s.MatchIndex[i] = 0
 	}
 
-	//send heatbeat message to all peers
-	for i := 0; i < len(s.peers); i++ {
-		actionArray = append(actionArray, Send{from: s.peers[i], event: AppendEntriesReq{term: s.currentTerm, leaderId: s.leader, lastLogIndex: lastIndex, lastLogTerm: lastTerm, entries: logEntries, leaderCommit: s.commitIndex}})
+	//send heatbeat message to all Peers
+	for i := 0; i < len(s.Peers); i++ {
+		//fmt.Println("leader timeout************")
+		actionArray = append(actionArray, Send{From: s.Peers[i], Event: AppendEntriesReq{Term: s.CurrentTerm, LeaderId: s.Leader, LastLogIndex: lastIndex, LastLogTerm: lastTerm, Entries: LogEntries, LeaderCommit: s.CommitIndex}})
 	}
-
+	//fmt.Println("leader alarm************")
 	actionArray = append(actionArray, Alarm{10})
 	//return action
 	return actionArray
 
 }
 
-//Handle coming append entry request in leader state
+//Handle coming append entry request in Leader State
 func OnAppendEntriesReqLeader(s *Server, msg AppendEntriesReq) []Action {
 	actionArray := make([]Action, 0)
-	logLength := len(s.log)
+	LogLength := len(s.Log)
 	var latestTerm int = 0
-	if s.currentTerm < msg.term {
-		//store latest term
-		latestTerm = msg.term
+	if s.CurrentTerm < msg.Term {
+		//store latest Term
+		latestTerm = msg.Term
 	}
-	if s.currentTerm >= msg.term {
-		// received request term is less then or equal server's current term then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
-	} else if logLength < msg.lastLogIndex {
-		//convert to follower mode on receiving append entry req from leader
-		s.state = "FOLLOWER"
-		s.leader = msg.leaderId
-		//last log index of follower log not matches with received last log index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
-	} else if msg.lastLogIndex != -1 && logLength != 0 && s.log[msg.lastLogIndex].term != msg.lastLogTerm {
-		//convert to follower mode on receiving append entry req from leader
-		s.leader = msg.leaderId
-		s.state = "FOLLOWER"
-		//last log index of follower log  matches with received last log index but terms differs on that index then don't append
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: false, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
+	if s.CurrentTerm >= msg.Term {
+		// received request Term is less then or equal server's current Term then don't append
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: false, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
+	} else if LogLength < msg.LastLogIndex {
+		//convert to follower mode on receiving append entry req From Leader
+		s.State = "FOLLOWER"
+		s.Leader = msg.LeaderId
+		//last Log Index of follower Log not matches with received last Log Index then don't append
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: false, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
+	} else if msg.LastLogIndex != -1 && LogLength != 0 && s.Log[msg.LastLogIndex].Term != msg.LastLogTerm {
+		//convert to follower mode on receiving append entry req From Leader
+		s.Leader = msg.LeaderId
+		s.State = "FOLLOWER"
+		//last Log Index of follower Log  matches with received last Log Index but Terms differs on that Index then don't append
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: false, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
 	} else {
-		//delete enteries from log starting from lastLogIndex+1 to end
-		i := msg.lastLogIndex + 1
-		if logLength > i {
-			s.log = append(s.log[:i], s.log[:i+1]...)
+		//delete enteries From Log starting From LastLogIndex+1 to end
+		i := msg.LastLogIndex + 1
+		if LogLength > i {
+			s.Log = append(s.Log[:i], s.Log[:i+1]...)
 		}
-		if len(msg.entries) > 0 {
-			//send log store action to raft node
-			actionArray = append(actionArray, LogStore{index: i, data: msg.entries[msg.lastLogIndex+1].data})
-			s.log = append(s.log, msg.entries...)
+		if len(msg.Entries) > 0 {
+			//send Log store action to raft node
+			actionArray = append(actionArray, LogStore{Index: i, Data: msg.Entries[0].Data})
+			s.Log = append(s.Log, msg.Entries...)
 		}
-		//update term and voted for if term in append entry rpc is greater than follower current term
-		s.leader = msg.leaderId
-		if latestTerm > s.currentTerm {
-			s.currentTerm = msg.term
-			s.votedFor = 0
-			//send state store action to raft node
-			actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+		//update Term and voted for if Term in append entry rpc is greater than follower current Term
+		s.Leader = msg.LeaderId
+		if latestTerm > s.CurrentTerm {
+			s.CurrentTerm = msg.Term
+			s.VotedFor = 0
+			//send State store action to raft node
+			actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 		}
 		//change to follower
-		s.state = "FOLLOWER"
-		if msg.leaderCommit > s.commitIndex {
-			s.commitIndex = min(msg.leaderCommit, i-1)
-			//check data index******
+		s.State = "FOLLOWER"
+		if msg.LeaderCommit > s.CommitIndex {
+			s.CommitIndex = min(msg.LeaderCommit, i-1)
+			//check Data Index******
 			//send commit action to raft node
-			actionArray = append(actionArray, Commit{index: s.commitIndex, data: s.log[s.commitIndex].data})
+			actionArray = append(actionArray, Commit{Index: s.CommitIndex, Data: s.Log[s.CommitIndex].Data})
 		}
-		actionArray = append(actionArray, Send{from: msg.leaderId, event: AppendEntriesResp{term: s.currentTerm, success: true, from: serverId, count: len(msg.entries), lastLogIndex: msg.lastLogIndex}})
+		actionArray = append(actionArray, Send{From: msg.LeaderId, Event: AppendEntriesResp{Term: s.CurrentTerm, Success: true, From: s.MyId, Count: len(msg.Entries), LastLogIndex: msg.LastLogIndex}})
 
 	}
-	//In case server has rejected append entry request from the sever with higher term, then update the term and clear votedfor
-	if latestTerm > s.currentTerm {
-		s.currentTerm = latestTerm
-		s.votedFor = 0
+	//In case server has rejected append entry request From the sever with higher Term, then update the Term and clear VotedFor
+	if latestTerm > s.CurrentTerm {
+		s.CurrentTerm = latestTerm
+		s.VotedFor = 0
 		//change to follower
-		s.state = "FOLLOWER"
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+		s.State = "FOLLOWER"
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	}
 	//return action
 	return actionArray
 }
 
-//Handle coming append data request from client in leader state
+//Handle coming append Data request From client in Leader State
 func OnAppendRequestFromClientToLeader(s *Server, msg Append) []Action {
 	actionArray := make([]Action, 0)
-	//leader will get his last log index
-	lastIndex := len(s.log) - 1
-	//Leader will append client data in his log first
-	s.log = append(s.log, LogInfo{term: s.currentTerm, data: msg.data})
-	//send logstore action to raft node
-	actionArray = append(actionArray, LogStore{index: (lastIndex + 1), data: msg.data})
-	//set next index and match index
-	s.nextIndex = make([]int, 4)
-	s.matchIndex = make([]int, 4)
-	for i := 0; i < 4; i++ {
-		s.nextIndex[i] = lastIndex + 1
-		s.matchIndex[i] = 0
+	//Leader will get his last Log Index
+	lastIndex := len(s.Log) - 1
+	lastTerm := -1
+	if lastIndex >= 0 {
+		lastTerm = s.Log[lastIndex].Term
 	}
-	logEntries := make([]LogInfo, 0)
-	logEntries = append(logEntries, LogInfo{term: s.currentTerm, data: msg.data})
-	//send append entry request to all peers
-	for i := 0; i < len(s.peers); i++ {
-		actionArray = append(actionArray, Send{from: s.peers[i], event: AppendEntriesReq{term: s.currentTerm, leaderId: s.leader, lastLogIndex: lastIndex, lastLogTerm: s.log[lastIndex].term, entries: logEntries, leaderCommit: s.commitIndex}})
+	//Leader will append client Data in his Log first
+	s.Log = append(s.Log, LogInfo{Term: s.CurrentTerm, Data: msg.Data})
+	//send Logstore action to raft node
+	actionArray = append(actionArray, LogStore{Index: (lastIndex + 1), Data: msg.Data})
+	//set next Index and match Index
+	s.NextIndex = make([]int, 10)
+	s.MatchIndex = make([]int, 10)
+	for i := 0; i < 4; i++ {
+		s.NextIndex[i] = lastIndex + 1
+		s.MatchIndex[i] = 0
+	}
+	LogEntries := make([]LogInfo, 0)
+	LogEntries = append(LogEntries, LogInfo{Term: s.CurrentTerm, Data: msg.Data})
+	//send append entry request to all Peers
+	for i := 0; i < len(s.Peers); i++ {
+		actionArray = append(actionArray, Send{From: s.Peers[i], Event: AppendEntriesReq{Term: s.CurrentTerm, LeaderId: s.Leader, LastLogIndex: lastIndex, LastLogTerm: lastTerm, Entries: LogEntries, LeaderCommit: s.CommitIndex}})
 	}
 	return actionArray
 }
 
-//Handle append entry resp request coming to leader
+//Handle append entry resp request coming to Leader
 func OnAppendEntriesRespLeader(s *Server, msg AppendEntriesResp) []Action {
 	actionArray := make([]Action, 0)
-	id := msg.from - 1
-	if s.currentTerm < msg.term {
-		// our state machine is lagging behind so convert to follower and update term
-		s.currentTerm = msg.term
-		s.votedFor = 0
-		s.state = "FOLLOWER"
-		//send state store action
-		actionArray = append(actionArray, StateStore{term: s.currentTerm, votedFor: s.votedFor})
+	id := msg.From - 1
+	if s.CurrentTerm < msg.Term {
+		// our State machine is lagging behind so convert to follower and update Term
+		s.CurrentTerm = msg.Term
+		s.VotedFor = 0
+		s.State = "FOLLOWER"
+		//send State store action
+		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	} else {
-		if msg.success == false {
-			//decrease next index for the follower server id from which we have received this negative response
-			if s.nextIndex[id] > 0 {
-				s.nextIndex[id] = s.nextIndex[id] - 1
+		if msg.Success == false {
+			//decrease next Index for the follower server id From which we have received this negative response
+			if s.NextIndex[id] > 0 {
+				s.NextIndex[id] = s.NextIndex[id] - 1
 			} else {
-				s.nextIndex[id] = 0
+				s.NextIndex[id] = 0
 			}
 
-			//update last log index and term needed to sent to the follower server
-			lastIndex := msg.lastLogIndex - 1
+			//update last Log Index and Term needed to sent to the follower server
+			lastIndex := -1
+			if msg.LastLogIndex >= 0 {
+				lastIndex = msg.LastLogIndex - 1
+			}
 			lastTerm := 0
 			if lastIndex >= 0 {
-				lastTerm = s.log[lastIndex].term
+				lastTerm = s.Log[lastIndex].Term
 			}
-			//get slice of data from logs starting from last index to length
-			entries := s.log[lastIndex+1 : len(s.log)]
+			//get slice of Data From Logs starting From last Index to length
+			Entries := make([]LogInfo, 0)
+			//fmt.Println("slice-----",s.Log,lastIndex,len(s.Log))
+			if len(s.Log) > 0 {
+				Entries = s.Log[lastIndex+1 : len(s.Log)]
+			}
+
 			//send append entry request again to that server
-			actionArray = append(actionArray, Send{from: msg.from, event: AppendEntriesReq{term: s.currentTerm, leaderId: s.leader, lastLogIndex: lastIndex, lastLogTerm: lastTerm, entries: entries, leaderCommit: s.commitIndex}})
+			actionArray = append(actionArray, Send{From: msg.From, Event: AppendEntriesReq{Term: s.CurrentTerm, LeaderId: s.Leader, LastLogIndex: lastIndex, LastLogTerm: lastTerm, Entries: Entries, LeaderCommit: s.CommitIndex}})
 
 		} else {
-			//update  match index if positive append entry response is received from follower for it's id
-			if (msg.lastLogIndex + msg.count) >= s.matchIndex[id] {
-				s.matchIndex[id] = msg.lastLogIndex + msg.count
+			//update  match Index if positive append entry response is received From follower for it's id
+			//fmt.Println("error",id,len(s.MatchIndex))
+			if (msg.LastLogIndex + msg.Count) >= s.MatchIndex[id] {
+				s.MatchIndex[id] = msg.LastLogIndex + msg.Count
+				//fmt.Println("matchIndex",s.MatchIndex[id])
 			}
 		}
-		// make a copy of matchindex in order to sort
-		matchIndexCopy := make([]int, 4)
-		copy(matchIndexCopy, s.matchIndex)
-		sort.IntSlice(matchIndexCopy).Sort()
+		// make a copy of MatchIndex in order to sort
+		MatchIndexCopy := make([]int, 5)
+		copy(MatchIndexCopy, s.MatchIndex)
+		sort.IntSlice(MatchIndexCopy).Sort()
+		//fmt.Println(MatchIndexCopy)
+		//fmt.Println(s.MatchIndex)
 
-		//commit index is that match index which is present on majority
-		N := matchIndexCopy[2]
-		//Leader will commit entries only if it's stored on a majority of servers and atleast one new entry from leader's term must also be stored on majority of servers.
-		if N > s.commitIndex && s.log[N].term == s.currentTerm {
-			//Update new commit index
-			s.commitIndex = N
-			//send commit action to client
-			actionArray = append(actionArray, Commit{index: N, data: []byte("Response")})
+		//commit Index is that match Index which is present on majority
+		N := MatchIndexCopy[3]
+		//Leader will commit Entries only if it's stored on a majority of servers and atleast one new entry From Leader's Term must also be stored on majority of servers.
+		//fmt.Println("memory logs",s.Log)
+		if len(s.Log) >= 1 {
+			//fmt.Println("log +term",s.Log[N].Term,s.CurrentTerm,N,s.CommitIndex)
+			if N > s.CommitIndex && s.Log[N].Term == s.CurrentTerm {
+				//Update new commit Index
+				s.CommitIndex = N
+				//send commit action to client
+				actionArray = append(actionArray, Commit{Index: N, Data: []byte(s.Log[N].Data)})
+				/*//send heartbeat msg to all the servers to commit the entry
+				blankEntries:=make([]LogInfo,0)
+				lastIndex:=-1
+				if(msg.LastLogIndex>=0){
+						lastIndex = msg.LastLogIndex - 1
+				}
+				lastTerm := 0
+				if lastIndex >= 0 {
+					lastTerm = s.Log[lastIndex].Term
+				}
+				actionArray = append(actionArray, Send{From: msg.From, Event: AppendEntriesReq{Term: s.CurrentTerm, LeaderId: s.Leader, LastLogIndex: lastIndex, LastLogTerm: lastTerm, Entries: blankEntries, LeaderCommit: s.CommitIndex}})*/
+			}
 		}
 
 	}
