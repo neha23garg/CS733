@@ -347,6 +347,8 @@ func onTimeOutFollower(s *Server) []Action {
 	s.CurrentTerm = s.CurrentTerm + 1
 	//vote for self
 	s.VotedFor = s.MyId
+	//clear vote array
+	s.VoteGranted = make([]int, 10)
 	//send State store action
 	actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 	//send vote request message to Peers
@@ -435,7 +437,7 @@ func OnVoteRespCandidate(s *Server, msg VoteResp) []Action {
 		s.CurrentTerm = msg.Term
 		s.VotedFor = 0
 		s.State = "FOLLOWER"
-		s.VoteGranted = make([]int, 10)
+		s.VoteGranted = make([]int, 5)
 		//send State store action
 		actionArray = append(actionArray, StateStore{Term: s.CurrentTerm, VotedFor: s.VotedFor})
 		//reset timer
