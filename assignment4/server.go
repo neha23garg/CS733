@@ -1,0 +1,254 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	file "github.com/neha23garg/CS733/assignment4/fs"
+	//raft "github.com/neha23garg/CS733/assignment4"
+	"net"
+	"os"
+	"strconv"
+	//"string"
+	"time"
+)
+
+type ClientHandler struct {
+	rnode      RaftNode
+	ClientPort int
+	ClientMap  map[int]chan *file.Msg
+	Fsystem    *file.FS
+}
+
+var crlf = []byte{'\r', '\n'}
+var counter = 1
+
+type AppendToRaft struct {
+	MsgId      int
+	RaftNodeId int
+	Msg        *file.Msg
+}
+
+func check(obj interface{}) {
+	if obj != nil {
+		fmt.Println(obj)
+		os.Exit(1)
+	}
+}
+
+func reply(conn *net.TCPConn, msg *file.Msg) bool {
+	var err error
+	write := func(data []byte) {
+		if err != nil {
+			return
+		}
+		_, err = conn.Write(data)
+	}
+	var resp string
+	switch msg.Kind {
+	case 'C': // read response
+		resp = fmt.Sprintf("CONTENTS %d %d %d", msg.Version, msg.Numbytes, msg.Exptime)
+	case 'O':
+		resp = "OK "
+		if msg.Version > 0 {
+			resp += strconv.Itoa(msg.Version)
+		}
+	case 'F':
+		resp = "ERR_FILE_NOT_FOUND"
+	case 'V':
+		resp = "ERR_VERSION " + strconv.Itoa(msg.Version)
+	case 'M':
+		resp = "ERR_CMD_ERR"
+	case 'I':
+		resp = "ERR_INTERNAL"
+	case 'E':
+		resp = "ERR_REDIRECT " + msg.RedirectUrl
+		//fmt.Printf("Redirecting to %+v", resp)
+	default:
+		fmt.Printf("Unknown response kind '%c'", msg.Kind)
+		return false
+	}
+	resp += "\r\n"
+	write([]byte(resp))
+	if msg.Kind == 'C' {
+		write(msg.Contents)
+		write(crlf)
+	}
+	return err == nil
+}
+
+func (handle *ClientHandler) serve(conn *net.TCPConn) {
+	reader := bufio.NewReader(conn)
+	for {
+		msg, msgerr, fatalerr := file.GetMsg(reader)
+		if fatalerr != nil || msgerr != nil {
+			reply(conn, &file.Msg{Kind: 'M'})
+			conn.Close()
+			break
+		}
+
+		if msgerr != nil {
+			if (!reply(conn, &file.Msg{Kind: 'M'})) {
+				conn.Close()
+				break
+			}
+		}
+		//send append request
+		//fmt.Println("message send", msg.Contents, string(msg.Kind))
+		if string(msg.Kind) != "r" {
+			appendMsg := &AppendToRaft{MsgId: counter, RaftNodeId: handle.rnode.ID(), Msg: msg}
+
+			//fmt.Println("if==================================", appendMsg)
+			waitCh := make(chan *file.Msg, 0)
+			//reqId := handle.AddToRequestMap(waitChannel)
+			handle.ClientMap[counter] = waitCh
+			handle.rnode.Append(appendMsg)
+			counter++
+			go handle.CheckWaitChannel(conn, waitCh)
+			//x := <-handle.rnode.CommitChannel()
+			//y := x.(Commit)
+
+			//fmt.Print("commit channel value", x, x.Data, "counter", counter)
+		} else {
+			response := handle.Fsystem.ProcessMsg(msg)
+			//fmt.Printf("msg from processmsg : %+v", response)
+			if !reply(conn, response) {
+				conn.Close()
+				break
+			}
+		}
+		//fmt.Println("esle==================================")
+
+	}
+}
+
+func (handle *ClientHandler) CheckWaitChannel(conn *net.TCPConn, waitCh chan *file.Msg) {
+	select {
+	case wtChannel := <-waitCh:
+		//	var output *file.Msg
+		//var leaderPort int
+
+		//reqObj := wtChannel.Data.(*AppendToRaft)
+
+		/*if wtChannel.Error == "" {
+			output = handle.Fsystem.ProcessMsg(reqObj.Msg)
+		} if wtChannel.Error != "" {
+			if wtChannel.Error == strconv.Itoa(0) {
+				leaderPort = handle.ClientPort
+			} else {
+				leaderPort = FetchLeaderPortDetails(wtChannel.Error)
+			}
+
+			fmt.Println("leader port***", leaderPort)
+			output = &file.Msg{Kind: 'E', RedirectUrl: "localhost:" + strconv.Itoa(leaderPort)}
+			fmt.Println("requestmsg****", output)
+			//fmt.Println(response) //fetch raft node client port corresponding to leader id}
+			//output = handle.Fsystem.ProcessMsg(reqObj.Msg)
+		}*/
+
+		if !reply(conn, wtChannel) {
+			conn.Close()
+		}
+	case <-time.After(20 * time.Second):
+		// Connection timed out
+		conn.Close()
+		return
+	}
+}
+
+func FetchLeaderPortDetails(id string) int {
+	//fmt.Println("inside FetchLeaderPortDetails", id)
+	for i := 0; i <= 4; i++ {
+		if strconv.Itoa(chandle[i].rnode.ID()) == id {
+			return chandle[i].ClientPort
+		}
+	}
+	return 0
+}
+
+func (handle *ClientHandler) serverMain() {
+	//fmt.Println("server star")
+	go handle.rnode.ProcessEvents()
+
+	tcpaddr, err := net.ResolveTCPAddr("tcp", "localhost:"+strconv.Itoa(handle.ClientPort))
+	check(err)
+	tcp_acceptor, err := net.ListenTCP("tcp", tcpaddr)
+	check(err)
+	go func() {
+		for {
+			tcp_conn, err := tcp_acceptor.AcceptTCP()
+			check(err)
+			go handle.serve(tcp_conn)
+		}
+	}()
+	go handle.CheckRaftCommitChannel()
+	//fmt.Println("outside servermain")
+}
+
+func (handle *ClientHandler) CheckRaftCommitChannel() {
+	//listen on commit channel
+	//data := <-handle.rnode.CommitChannel()
+	var output *file.Msg
+	var leaderPort int
+	//fmt.Println("isnide checkraftcommithandle-------------------------")
+	for {
+		select {
+		case event, ok := <-handle.rnode.CommitChannel():
+
+			if ok {
+
+				eventObj := event.Data.(*AppendToRaft)
+				//fmt.Println("inside ok--------", event, "id", eventObj.MsgId)
+				// Reply only if the client has requested this server
+				//if reqObj.ServerId == ch.rn.Id() {
+				//fmt.Printf("\nReq Obj==>\n rcd ID: %d \n  msg: %+v\n", eventObj.MsgId, eventObj.Msg)
+				//fmt.Println("@@", event)
+				if event.Error == "" {
+					output = handle.Fsystem.ProcessMsg(eventObj.Msg)
+				} else {
+
+					if event.Error == strconv.Itoa(0) {
+						leaderPort = handle.ClientPort
+					} else {
+						leaderPort = FetchLeaderPortDetails(event.Error)
+					}
+
+					//	fmt.Println("leader port***", leaderPort)
+					output = &file.Msg{Kind: 'E', RedirectUrl: "localhost:" + strconv.Itoa(leaderPort)}
+					//fmt.Println("requestmsg****", output)
+
+				}
+				if eventObj.RaftNodeId == handle.rnode.ID() {
+					waitCh := handle.ClientMap[eventObj.MsgId]
+					waitCh <- output
+				}
+
+				//}
+
+			} else {
+
+				return
+			}
+		default:
+
+		}
+	}
+
+}
+
+func InitializeClientHandler(config Config) (ch *ClientHandler) {
+	ch = &ClientHandler{
+		rnode:      *New(config),
+		ClientPort: config.Ports,
+		ClientMap:  make(map[int]chan *file.Msg),
+		Fsystem:    &file.FS{Dir: make(map[string]*file.FileInfo, 1000)},
+	}
+
+	//ch.rn = raft.New(config.Cluster[index].Id,config)
+
+	//fmt.Println("raftnode created in ch: ")
+	return ch
+}
+
+func main() {
+	//serverMain()
+}
