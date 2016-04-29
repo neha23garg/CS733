@@ -1,0 +1,41 @@
+A replicated file system using Raft protocol
+
+Four basic functionalities are provided by this file system
+1. Read
+2. Write
+3. Cas
+4. Delete
+
+Write, Cas, Delete are replicated across all raft nodes while read request requests will be satisfied locally without any 
+replication.
+
+Command Specifications:
+1. Write:
+       write <filename> <numbytes> [<exptime>]\r\n <content bytes>\r\n
+    Write response:
+       OK <version>
+2. Read:
+       read <filename>\r\n
+    Read response:
+       CONTENTS <version> <numbytes> <exptime> \r\n <content bytes>\r\n
+3. CAS: (Compare and Swap)
+       cas <filename> <version> <numbytes> [<exptime>]\r\n <content bytes>\r\n
+    Cas response:
+       OK <version>\r\n
+4. Delete:
+       delete <filename>\r\n
+     Delete response:
+       OK\r\n
+
+Errors Specifications:
+     ERR_VERSION\r\n
+     ERR_FILE_NOT_FOUND\r\n
+     ERR_CMD_ERR\r\n
+     ERR_INTERNAL\r\n
+     ERR_REDIRECT <url>\r\n
+     
+Get the source code from using the following command
+go get github.com/neha23garg/CS733/assignment4
+
+Run the code
+go test -v
